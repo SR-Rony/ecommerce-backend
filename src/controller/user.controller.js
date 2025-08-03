@@ -35,7 +35,7 @@ const handleRegister = async (req, res, next) => {
       html: `
         <h1>Hello ${name}</h1>
         <p>Please click the link below to verify your email:</p>
-        <a href="${clientUrl}/verify/${token}" target="_blank">Activate your account</a>
+        <a href="${clientUrl}/user/verify/${token}" target="_blank">Activate your account</a>
       `,
     };
 
@@ -225,32 +225,44 @@ const handleUpdatePassword =async(req,res,next)=>{
 }
 
 // ======user forgate password set=========//
-const handleForgatePassword =async(req,res,next)=>{
-    try {
-        const {email} = req.body
-        const token = await forgetPasswordService(email)
-        //======= user delete and success respons fun () =======//
-        return successRespons(res,{
-            statusCode :200,
-            message : `Plase got to your ${email} resetion the password`,
-            paylod:{token:token}
-        })
-    } catch (error) {
-        next(error)
+const handleForgotPassword = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required"
+      });
     }
-}
+
+    const token = await forgetPasswordService(email);
+
+    // Send token via email inside forgetPasswordService (not in the response for security)
+    return successRespons(res, {
+      statusCode: 200,
+      message: `Please check your email (${email}) to reset your password`
+    });
+
+  } catch (error) {
+    next(error);
+  }
+};
+
 
 // ======user reset password set=========//
 const handleResetPassword =async(req,res,next)=>{
     try {
-        const {token,newpassword} = req.body
+        const {token,newPassword} = req.body
+        console.log(newPassword);
         
-        const userData = await resetPasswordService(token,newpassword)
+        
+        const userData = await resetPasswordService(token,newPassword)
         //======= user delete and success respons fun () =======//
         return successRespons(res,{
             statusCode :200,
             message : `Reset password successfull`,
-            paylod:userData
+            payload:{user:userData}
         })
     } catch (error) {
         next(error)
@@ -296,6 +308,6 @@ module.exports = {
     handleUpdateUser,
     handleManageUser,
     handleUpdatePassword,
-    handleForgatePassword,
+    handleForgotPassword,
     handleResetPassword
 }

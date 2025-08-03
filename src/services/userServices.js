@@ -121,7 +121,7 @@ const forgetPasswordService =async (email)=>{
            subject:"Reset password email",
            html:`
                <h1>Hello ${userData.name}</h1>
-               <p>please click hear to <a href="${clientUrl}/reset-password/${token}" target="_blank">Reset your password</a></p>
+               <p>please click hear to <a href="${clientUrl}/user/reset-password/${token}" target="_blank">Reset your password</a></p>
            `
         }
            // send email with nodemailer

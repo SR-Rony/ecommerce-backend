@@ -1,5 +1,16 @@
 const route = require("express").Router()
-const { handleManageUser, handleUpdatePassword, handleForgatePassword, handleResetPassword, handleRegister, handleUserVerify, handleGetUsers, handleGetSingleUser, handleDeleteUser, handleUpdateUser } = require("../../controller/user.controller")
+const { 
+    handleManageUser,
+    handleUpdatePassword,
+    handleResetPassword,
+    handleRegister,
+    handleUserVerify, 
+    handleGetUsers, 
+    handleGetSingleUser, 
+    handleDeleteUser, 
+    handleUpdateUser, 
+    handleForgotPassword 
+} = require("../../controller/user.controller")
 const runValidation = require("../../middlewares/validators")
 const { userRegistationValidate, updatePasswordValidate, userForgatePassword, userResetPassword } = require("../../middlewares/validators/auth")
 const {isLoggedIn, isLoggedOut, isAdmin} = require("../../middlewares/auth")
@@ -29,10 +40,12 @@ route.put("/update/:id([0-9a-fA-F]{24})",handleUpdateUser)
 route.put("/update-password/:id([0-9a-fA-F]{24})",isLoggedIn,updatePasswordValidate,handleUpdatePassword)
 
 // user forget password set: localhost:400/api/v1/users/forget-password
-route.post("/forget-password",isLoggedOut,userForgatePassword,runValidation, handleForgatePassword)
+route.post("/forgot-password", handleForgotPassword)
+// route.post("/forgot-password",isLoggedOut,userForgatePassword,runValidation, handleForgatePassword)
 
 // user reset password :localhost:400/api/v1/users/reset-password
-route.put("/reset-password",isLoggedOut,userResetPassword,runValidation, handleResetPassword)
+route.put("/reset-password", handleResetPassword)
+// route.put("/reset-password",isLoggedOut,userResetPassword,runValidation, handleResetPassword)
 
 // handle manage user: localhost:400/api/v1/users/manage-user
 route.put("/manage-user/:id([0-9a-fA-F]{24})",isLoggedIn,isAdmin,handleManageUser)
