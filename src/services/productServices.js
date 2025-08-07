@@ -6,34 +6,105 @@ const cloudinary = require("../config/cloudinary")
 const { cloudinaryHelper, deleteCloudinaryImage } = require("../helper/cloudinaryHelper")
 
 // create category service
-const createProductServices = async (name,description,price,quantity,shipping,categoryId,image)=>{
-
-    const productExists = await Product.exists({name:name})
-        if(productExists){
-            throw createError(409,'Product name already exists')
-        }
-        
-        if(image){
-            const respons = await cloudinary.uploader.upload(image,{
-                folder:"mernEcommerce/product"
-            })
-            image = respons.secure_url
-        }
-
-        const newProduct = await Product.create({
-            name:name,
-            slug: slugify(name),
-            description:description,
-            price:price,
-            quantity:quantity,
-            shipping:shipping,
-            image:image,
-            categoryId:categoryId
-        })
 
 
-    return newProduct
-}
+const createProductServices = async (
+  name,
+  description,
+  price,
+  quantity,
+  shipping,
+  categoryId,
+  image // assume this is already an image URL or handled elsewhere
+) => {
+    
+    // Check if product with the same name already exists to avoid duplicates
+    // const productExists = await Product.exists({ name: name });
+    // if (productExists) {
+    //     throw createError(409, "Product name already exists");
+    // }
+    
+    console.log("message", name, description, price, quantity, shipping, categoryId, image);
+  let imageUrl = image;
+
+  // Skip uploading to Cloudinary; just save the image as provided
+
+  console.log("ami3");
+
+  // Create the new product document in MongoDB
+  const newProduct = await Product.create({
+    name: name,
+    slug: slugify(name),
+    description: description,
+    price: price,
+    quantity: quantity,
+    shipping: shipping,
+    image: imageUrl,
+    categoryId: categoryId,
+  });
+
+  console.log("ami4");
+
+  return newProduct;
+};
+
+
+
+
+
+
+
+
+
+
+
+// const createProductServices = async (
+//   name,
+//   description,
+//   price,
+//   quantity,
+//   shipping,
+//   categoryId,
+//   image // expected to be a local file path or base64 data?
+// ) => {
+//     console.log("ami2");
+    
+//   // Check if product with the same name already exists to avoid duplicates
+//   const productExists = await Product.exists({ name: name });
+//   if (productExists) {
+//     throw createError(409, "Product name already exists");
+//   }
+
+//   let imageUrl = image;
+//   log("Image URL before upload:", imageUrl);
+//   // If there is an image file (probably a local file path or base64 string),
+//   // upload it to Cloudinary and get the secure URL
+//   if (image) {
+//     const response = await cloudinary.uploader.upload(image, {
+//       folder: "mernEcommerce/product",
+//     });
+//     imageUrl = response.secure_url; // get the URL from Cloudinary response
+//   }
+// console.log('ami3');
+
+//   // Create the new product document in MongoDB
+//   const newProduct = await Product.create({
+//     name: name,
+//     slug: slugify(name), // generate a URL-friendly slug from product name
+//     description: description,
+//     price: price,
+//     quantity: quantity,
+//     shipping: shipping, // expected boolean or number (1/0)
+//     image: imageUrl,
+//     categoryId: categoryId,
+//   });
+
+//   console.log('ami4');
+  
+
+//   return newProduct;
+// };
+
 
 // create category service
 const updateProductServices = async (req,slug)=>{

@@ -25,7 +25,7 @@ route.post("/verify",isLoggedOut,handleUserVerify)
 
 // all get user: localhost:400/api/v1/users/
 // route.get("/",isLoggedIn,isAdmin,handleGetUsers)
-route.get("/",isLoggedIn,isAdmin,handleGetUsers)
+route.get("/",handleGetUsers)
 
 // single get user: localhost:400/api/v1/users/:id
 route.get("/:id([0-9a-fA-F]{24})",isLoggedIn,handleGetSingleUser)

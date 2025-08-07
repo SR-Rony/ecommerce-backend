@@ -5,15 +5,26 @@ const { createCategoryServices, deleteCategoryServices, updateCategoryServices }
 
 
 // GET vew categroy
-const handleGetCategory = async (req,res,next)=>{
-    const category = await Category.find({}).select('name slug').lean()
-    // success response
-    successRespons(res,{
-        statusCode:200,
-        message:"vew all category",
-        paylod:category
+const handleGetCategory = async (req, res, next) => {
+  try {
+    const search = req.query.search || "";
+
+    const categories = await Category.find({
+      name: { $regex: search, $options: "i" } // case-insensitive search
     })
-}
+      .select("name slug")
+      .lean();
+
+    return successRespons(res, {
+      statusCode: 200,
+      message: "View all categories",
+      payload: categories,
+    });
+
+  } catch (error) {
+    next(error);
+  }
+};
 
 // GET vew single categroy
 const handleGetSingleCategory = async (req,res,next)=>{
@@ -31,21 +42,30 @@ const handleGetSingleCategory = async (req,res,next)=>{
 }
 
 // POST create category
-const handleCreateCategory = async(req,res,next)=>{
-   try {
-    const {name} = req.body
-    const newCategory = await createCategoryServices(name)
-    // success Respons
-   return successRespons(res,{
-        statusCode:200,
-        message:'new category create successfull',
-        paylod:newCategory
-    })
+const handleCreateCategory = async (req, res, next) => {
+  try {
+    const { name } = req.body;
 
-   } catch (error) {
-       next(error)
-   }
-}
+    if (!name || name.trim().length < 3) {
+      return res.status(400).json({
+        statusCode: 400,
+        message: "Category name must be at least 3 characters",
+      });
+    }
+
+    const newCategory = await createCategoryServices(name);
+
+    return successRespons(res, {
+      statusCode: 201,
+      message: "New category created successfully",
+      payload: newCategory,
+    });
+
+  } catch (error) {
+    next(error);
+  }
+};
+
 
 // POST update category
 const handleUpdateCategory = async(req,res,next)=>{
@@ -70,25 +90,34 @@ const handleUpdateCategory = async(req,res,next)=>{
  }
 
  // POST update category
-const handleDeleteCategory = async(req,res,next)=>{
-    try {
-     const {slug} = req.params
-     const deleteCategory = await deleteCategoryServices(slug)
-     console.log('item',deleteCategory);
-     if(!deleteCategory){
-        throw createError(400,'category not delete')
-     }
-     // success Respons
-    return successRespons(res,{
-         statusCode:201,
-         message:'category delete successfull',
-         paylod:deleteCategory
-     })
- 
-    } catch (error) {
-        next(error)
+const handleDeleteCategory = async (req, res, next) => {
+  try {
+    const { slug } = req.params;
+
+    if (!slug) {
+      throw createError(400, 'Category slug is required');
     }
- }
+
+    const deletedCategory = await deleteCategoryServices(slug);
+
+    console.log('Deleted category:', deletedCategory);
+
+    if (!deletedCategory) {
+      throw createError(404, 'Category not found or already deleted');
+    }
+
+    // Success Response
+    return successRespons(res, {
+      statusCode: 200,
+      message: 'Category deleted successfully',
+      payload: deletedCategory,
+    });
+
+  } catch (error) {
+    next(error);
+  }
+};
+
 
 
 module.exports = {

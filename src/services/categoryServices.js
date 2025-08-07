@@ -2,15 +2,13 @@ const  slugify = require("slugify")
 const Category = require("../models/categoryModel")
 
 // create category service
-const createCategoryServices = async (name)=>{
-    const categoryNameSlug = slugify(name)
-    const newCategory = await Category.create({
-        name:name,
-        slug:categoryNameSlug
-    })
+const createCategoryServices = async (name) => {
+  // Auto-generate slug
+  const slug = name.toLowerCase().replace(/\s+/g, "-");
 
-    return newCategory
-}
+  const category = await Category.create({ name, slug });
+  return category;
+};
 
 // update category service
 const updateCategoryServices = async (slug,name)=>{

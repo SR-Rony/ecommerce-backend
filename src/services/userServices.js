@@ -8,48 +8,19 @@ const { findWithIdService } = require("./findItem");
 const jwt = require("jsonwebtoken")
 
 // find user service
-const findUserService = async(search,limit,page)=>{
-    try{
-        const searchRegexp = new RegExp('.*'+search+'.*',"i")
-        // user filter
-        const filter = {
-            isAdmin : {$ne : true},
-            $or : [
-                {name: {$regex:searchRegexp}},
-                {email: {$regex:searchRegexp}},
-                {phone: {$regex:searchRegexp}},
-            ]
-        }
+const findUserService = async (search) => {
+  const query = {};
 
-        const userOption = {password:0}
+  if (search) {
+    query.$or = [
+      { name: { $regex: search, $options: "i" } },   // Search by name
+      { email: { $regex: search, $options: "i" } }  // Search by email
+    ];
+  }
 
-        // user pagesnation
-        const allUser = await Users.find(filter,userOption)
-        .limit(limit)
-        .skip( (page-1) * limit)
-
-        // all user count
-        const count = await Users.find(filter).countDocuments();
-
-        if(!allUser){
-            throw createError(404,'No user found')
-        }
-        // return success respons users
-
-        return {
-                allUser:allUser,
-                pasination : {
-                    totalPages: Math.ceil(count/limit),
-                    currentPages : page,
-                    prevPage : page-1 > 0 ? page-1:null,
-                    nextPage : page + 1 <= Math.ceil(count/limit) ? page+1 : null
-                }
-            }
-    }    
-    catch(error){
-        throw error
-    }
-}
+  const users = await Users.find(query).sort({ createdAt: -1 });
+  return users;
+};
 
 // handle user action 
 const UserActionService =async(userId,action)=>{

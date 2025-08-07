@@ -103,26 +103,28 @@ const handleUserVerify = async (req, res, next) => {
 };
 
 //======== get all users ========//
-const handleGetUsers = async (req,res,next)=>{
-    try{
-        // user request
-        const search = req.query.search || "";
-        const limit = Number(req.query.limit) || 5;
-        const page = Number(req.query.page) || 1;
-       const {allUser,pasination}= await findUserService(search,limit,page)
-        // return success respons users
-        return successRespons(res,{
-            statusCode :200,
-            message : "all user return",
-            paylod :{
-                allUser:allUser,
-                pasination : pasination
-            }
-        })
-    }catch(error){
-        next(error)
-    }
-}
+const handleGetUsers = async (req, res, next) => {
+  try {
+    console.log("Get all users");
+
+    // Search query (from ?search=xxx)
+    const search = req.query.search || "";
+
+    // Get all users matching the search
+    const allUser = await findUserService(search);
+
+    return successRespons(res, {
+      statusCode: 200,
+      message: "All users retrieved successfully",
+      payload: {
+        allUser,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 
 //======== single get user=======//
 const handleGetSingleUser = async (req,res,next)=>{

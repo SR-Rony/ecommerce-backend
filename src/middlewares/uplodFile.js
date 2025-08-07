@@ -1,55 +1,48 @@
-const multer = require("multer")
-const path = require("path")
-const createError = require("http-errors")
-const { userUplodDir, productUplodDir, fileSize, fileTypes } = require("../config")
+const multer = require("multer");
+const path = require("path");
+const { userUplodDir, productUplodDir, fileSize, fileTypes } = require("../config");
 
-
-// userr images upload storage
-const userStorage = multer.diskStorage({
-    // destination: function (req, file, cb) {
-    //   cb(null, userUplodDir)
-    // },
-    filename: function (req, file, cb) {
-        // const extname=path.extname(file.originalname)
-      // const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9)
-      cb(null, Date.now() + '-' + file.originalname)
-    }
-  })
-
-  // product images upload storage
-  const productStorage = multer.diskStorage({
-    // destination: function (req, file, cb) {
-    //   cb(null, productUplodDir)
-    // },
-    filename: function (req, file, cb) {
-        // const extname=path.extname(file.originalname)
-      // const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9)
-      cb(null, Date.now() + '-' + file.originalname)
-    }
-  })
-
-
-
-  const fileFileter =(req,file,cb)=>{
-    const extname =  path.extname(file.originalname);
-    if(!fileTypes.includes(file.mimetype)){
-      return cb(new Error("file typr is not allowed"),false)
-    }
-    cb(null,true)
+// ========= File Filter ========= //
+const fileFilter = (req, file, cb) => {
+  if (!fileTypes.includes(file.mimetype)) {
+    return cb(new Error("File type is not allowed"), false);
   }
-  
-  // upload user image
-  const uploadUserImage = multer({ 
-    
-    storage: userStorage ,
-    // limits:{fileSize:fileSize},
-    fileFileter:fileFileter,
-  })
+  cb(null, true);
+};
 
-  // upload product image
-  const uploadProductImage = multer({ 
-    storage: productStorage ,
-    // limits:{fileSize:fileSize},
-    fileFileter:fileFileter,
-  })
-  module.exports = {uploadUserImage,uploadProductImage}
+// ========= User Storage ========= //
+const userStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, userUplodDir);
+  },
+  filename: function (req, file, cb) {
+    const uniqueName = Date.now() + "-" + file.originalname;
+    cb(null, uniqueName);
+  },
+});
+
+// ========= Product Storage ========= //
+const productStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, productUplodDir);
+  },
+  filename: function (req, file, cb) {
+    const uniqueName = Date.now() + "-" + file.originalname;
+    cb(null, uniqueName);
+  },
+});
+
+// ========= Upload Middlewares ========= //
+const uploadUserImage = multer({
+  storage: userStorage,
+  limits: { fileSize },
+  fileFilter,
+});
+
+const uploadProductImage = multer({
+  storage: productStorage,
+  limits: { fileSize },
+  fileFilter,
+});
+
+module.exports = { uploadUserImage, uploadProductImage };

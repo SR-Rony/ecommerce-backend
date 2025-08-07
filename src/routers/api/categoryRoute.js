@@ -12,12 +12,14 @@ categoryRoute.get("/",handleGetCategory)
 categoryRoute.get("/:slug",handleGetSingleCategory)
 
 //POST localhost:400/api/v1/category
-categoryRoute.post("/",validateCategory,runValidation,isLoggedIn,isAdmin,handleCreateCategory)
+// categoryRoute.post("/",validateCategory,runValidation,isLoggedIn,isAdmin,handleCreateCategory)
+categoryRoute.post("/",handleCreateCategory)
 
 //update localhost:400/api/v1/category/:slug
 categoryRoute.post("/:slug",validateCategory,runValidation,isLoggedIn,isAdmin,handleUpdateCategory)
 //delete localhost:400/api/v1/category/:slug
-categoryRoute.delete("/:slug",isLoggedIn,isAdmin,handleDeleteCategory)
+// categoryRoute.delete("/:slug",isLoggedIn,isAdmin,handleDeleteCategory)
+categoryRoute.delete("/:slug",handleDeleteCategory)
 
 
 module.exports = categoryRoute

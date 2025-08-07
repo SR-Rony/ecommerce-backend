@@ -7,16 +7,13 @@ const { uploadProductImage } = require('../../middlewares/uplodFile')
 const productRoute = express.Router()
 
 //GET localhost:400/api/v1/product
-// productRoute.get("/",handleVewProduct)
-productRoute.get("/",(req,res)=>{
-    res.send('welcome to product')
-})
+productRoute.get("/",handleVewProduct)
 
 //GET localhost:400/api/v1/product/:slug
 productRoute.get("/:slug",handleVewSingleProduct)
 
 //POST localhost:400/api/v1/product
-productRoute.post("/",handleCreateProduct)
+productRoute.post("/",uploadProductImage.single("image"),handleCreateProduct)
 
 //UPDATE localhost:400/api/v1/product/slug
 productRoute.put("/:slug",isLoggedIn,uploadProductImage.single("image"),runValidation,isAdmin,handleUpdateProduct)

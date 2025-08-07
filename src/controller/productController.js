@@ -38,7 +38,7 @@ const handleVewProduct = async(req,res,next)=>{
          return successRespons(res,{
             statusCode:201,
             message:'All product vew successfull',
-            paylod:{
+            payload:{
                 products:allProducts,
                 pagitaion:{
                     totalPages: Math.ceil(count/limit),
@@ -55,52 +55,82 @@ const handleVewProduct = async(req,res,next)=>{
 }
 
 // handle GET product
-const handleVewSingleProduct = async(req,res,next)=>{
-    try {
-        const {slug} = req.params
-        const singleProduct = await Product.findOne({slug:slug}).populate('categoryId')
-        if(!singleProduct){
-            throw createError(404,'Product not found')
-        }
-         // success response message
-         return successRespons(res,{
-            statusCode:201,
-            message:'product vew successfull',
-            paylod:singleProduct
-        })
-    } catch (error) {
-        next(error)   
+const handleVewSingleProduct = async (req, res, next) => {
+  try {
+    const { slug } = req.params;
+
+    console.log("Fetching product with slug:", slug);
+    
+
+    const singleProduct = await Product.findOne({ slug }).populate("categoryId");
+
+    if (!singleProduct) {
+      throw createError(404, "Product not found");
     }
-}
+
+    // success response
+    return successRespons(res, {
+      statusCode: 200,
+      message: "Product fetched successfully",
+      payload: singleProduct,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 
 // handle create product
-const handleCreateProduct = async (req,res,next)=>{
-    res.send('new product')
-    try {
-        const {name,description,price,quantity,shipping,categoryId}=req.body
-        const image = req.file?.path; //images path
-        if(!image){
-            throw createError(409,"images file is require")
-        }
-        if(image > 1024 * 1024 * 2){
-            throw createError(409,"file to large. It must be less than  2MB")
-        }
+const handleCreateProduct = async (req, res, next) => {
+  try {
+    const { name, description, price, quantity, shipping, categoryId } = req.body;
+    const file = req.file;
 
-        const newProduct = await createProductServices(name,description,price,quantity,shipping,categoryId,image)
-        
-        // success response message
-        return successRespons(res,{
-            statusCode:201,
-            message:'Product was create successfull',
-            paylod:newProduct
-        })
-    } catch (error) {
-        next(error)
+    if (!name || !description || !price || !quantity || !categoryId) {
+      throw createError(400, "All required fields must be filled.");
     }
 
+    const productExists = await Product.exists({ name });
+    if (productExists) {
+      throw createError(409, "Product name already exists");
+    }
 
+    if (!file) {
+      throw createError(400, "Image file is required");
+    }
 
-}
+    if (file.size > 1024 * 1024 * 2) {
+      // 2MB max
+      throw createError(400, "File too large. Max size is 2MB");
+    }
+
+    let imageUrl = file.path; // default: local file path
+
+    // OPTIONAL: Upload to Cloudinary if needed
+    const result = await cloudinary.uploader.upload(file.path, {
+      folder: "mernEcommerce/product",
+    });
+    imageUrl = result.secure_url;
+
+    const newProduct = await Product.create({
+      name,
+      slug: slugify(name),
+      description,
+      price,
+      quantity,
+      shipping: shipping === "1" || shipping === true, // ensure boolean
+      image: imageUrl,
+      categoryId,
+    });
+
+    return successRespons(res, {
+      statusCode: 201,
+      message: "Product was created successfully",
+      payload: newProduct,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 
 // handle create product
 const handleUpdateProduct = async (req,res,next)=>{
