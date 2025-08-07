@@ -18,7 +18,7 @@ const rateLimiter = rateLimit({
 
 // middlewares
 app.use(cors({
-  origin: "*",// allow cookies if you're using them
+  origin: "https://next-project-chi-five.vercel.app",// allow cookies if you're using them
 }))
 
 app.use(cookieParser())

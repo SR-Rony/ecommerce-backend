@@ -11,7 +11,7 @@ const smtpUserName= process.env.SMTP_USERNAME || "hdronyrony@gmail.com"
 const smtpPassword= process.env.SMTP_PASSWORD || 'gacu eqmg lpxj qjel'
 // const defaulUserImg = process.env.DEFAULT_USER_IMG || "public/images/user/defaul_user.png"
 const defaulUserImg ="public/images/user/defaul_user.png"
-const clientUrl =process.env.CLIENT_URL || "http://localhost:3000"
+const clientUrl =process.env.CLIENT_URL || "https://next-project-chi-five.vercel.app"
 
 
 
