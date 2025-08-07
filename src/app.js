@@ -18,8 +18,7 @@ const rateLimiter = rateLimit({
 
 // middlewares
 app.use(cors({
-  origin: "http://localhost:3000",
-  credentials: true, // allow cookies if you're using them
+  origin: "*",// allow cookies if you're using them
 }))
 
 app.use(cookieParser())
