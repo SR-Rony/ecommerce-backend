@@ -6,6 +6,7 @@ const createError = require('http-errors')
 const rateLimit = require('express-rate-limit')
 const route = require("./routers/route");
 const { errorRespons } = require('./controller/respones.controller');
+const { clientUrl } = require('./secrit');
 
 const app = express();
 // server rate limite
@@ -16,15 +17,8 @@ const rateLimiter = rateLimit({
 
 })
 
-// middlewares
-// app.use(cors({
-//   origin: ["https://next-project-chi-five.vercel.app"],
-//   credentials: true,// allow cookies if you're using them
-// }))
-app.use(cors({
-  origin: "https://next-project-chi-five.vercel.app",
-  credentials: true,// allow cookies if you're using them
-}))
+
+app.use(cors({ origin: clientUrl || '*' }));
 
 app.use(cookieParser())
 // app.use(rateLimiter)
