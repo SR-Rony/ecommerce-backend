@@ -31,7 +31,7 @@ route.get("/",handleGetUsers)
 route.get("/:id([0-9a-fA-F]{24})",isLoggedIn,handleGetSingleUser)
 
 // delete user: localhost:400/api/v1/users/:id
-route.delete("/:id([0-9a-fA-F]{24})",isLoggedIn,handleDeleteUser)
+route.delete("/:id",handleDeleteUser)
 
 // update user:  localhost:400/api/v1/users/update/:id
 route.put("/update/:id([0-9a-fA-F]{24})",handleUpdateUser)

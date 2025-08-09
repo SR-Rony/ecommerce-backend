@@ -32,6 +32,42 @@ const userSchema = new Schema(
       type: String,
       required: [true, "User phone is required"],
     },
+    profileImage: {
+      type: String, // Cloudinary or local URL
+      default: "/images/users/default.png",
+    },
+    shippingAddress: {
+      address: { type: String, default: "" },
+      city: { type: String, default: "" },
+      state: { type: String, default: "" },
+      postalCode: { type: String, default: "" },
+      country: { type: String, default: "" },
+    },
+    billingAddress: {
+      address: { type: String, default: "" },
+      city: { type: String, default: "" },
+      state: { type: String, default: "" },
+      postalCode: { type: String, default: "" },
+      country: { type: String, default: "" },
+    },
+    wishlist: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Products",
+      },
+    ],
+    cart: [
+      {
+        product: { type: mongoose.Schema.Types.ObjectId, ref: "Products" },
+        quantity: { type: Number, default: 1 },
+      },
+    ],
+    orders: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Orders",
+      },
+    ],
     isAdmin: {
       type: Boolean,
       default: false,
@@ -39,6 +75,9 @@ const userSchema = new Schema(
     isBanned: {
       type: Boolean,
       default: false,
+    },
+    lastLogin: {
+      type: Date,
     },
   },
   { timestamps: true }

@@ -133,14 +133,14 @@ const handleGetSingleUser = async (req,res,next)=>{
         const option = {password:0}
         
         // single user search by id
-        let singleUser = await findWithIdService(User,id,option)
+        let singleUser = await findWithIdService(Users,id,option)
 
         // user success respons 
         return successRespons(res,{
             statusCode :200,
             message : "single user is return",
-            paylod :{
-                singleUser
+            payload :{
+                user:singleUser
             }
         })
     }catch(error){
@@ -272,34 +272,38 @@ const handleResetPassword =async(req,res,next)=>{
 }
 
 //====== delete user =======//
-const handleDeleteUser = async(req,res,next)=>{
-    try{
+const handleDeleteUser = async (req, res, next) => {
+  try {
     const id = req.params.id;
-    const option = {password:0}
-    const user = await findWithIdService(User,id,option)
 
-    if(user && user.image){
-        const cloudImageId = await cloudinaryHelper(user.image);
-        // cloudinary image delete helper
-        await deleteCloudinaryImage("mernEcommerce/users",cloudImageId,"User")
+    console.log("Delete user ID:", id);
+
+    const option = { password: 0 };
+    const user = await findWithIdService(Users, id, option);
+
+    if (!user) {
+      return next(createError(404, "User not found"));
     }
-    //delete user
-       await User.findByIdAndDelete({_id:id,isAdmin:false})
 
-    //======= user delete and success respons fun () =======//
-    return successRespons(res,{
-        statusCode :200,
-        message : " delete",
-        paylod :{
-            user:user
-        }
-    })
+    // Delete user only if not admin
+    const deletedUser = await Users.findOneAndDelete({ _id: id, isAdmin: false });
 
-
-    }catch(error){
-        next(error)
+    if (!deletedUser) {
+      return next(createError(403, "Admin accounts cannot be deleted"));
     }
-}
+
+    return successRespons(res, {
+      statusCode: 200,
+      message: "User deleted successfully",
+      payload: {
+        user,
+      },
+    });
+
+  } catch (error) {
+    next(error);
+  }
+};
 
 module.exports = {
     handleRegister,
