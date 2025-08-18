@@ -17,6 +17,8 @@ const rateLimiter = rateLimit({
 
 })
 
+app.use(cookieParser())
+
 const allowedOrigins = [
   'http://localhost:3000',
   'https://next-project-chi-five.vercel.app'
@@ -30,10 +32,9 @@ app.use(cors({
       callback(new Error('Not allowed by CORS'));
     }
   },
-  credentials: true
+  credentials: true // ✅ allows sending cookies cross-domain
 }));
 
-app.use(cookieParser())
 // app.use(rateLimiter)
 app.use(morgan("dev"))
 app.use(express.json())

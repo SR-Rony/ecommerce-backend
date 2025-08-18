@@ -1,26 +1,34 @@
 const createError = require("http-errors")
 const jwt =require("jsonwebtoken");
 const { jwtAccessKey } = require("../secrit");
+const Users = require("../models/userModel");
 //  user is login middleware
- const isLoggedIn = async (req,res,next)=>{
-    try{
-        const token = req.cookies.accessToken;
-        if(!token){
-            throw createError(401,"Access token not found. Please login")
-        }
-        const decoded = jwt.verify(token,jwtAccessKey)
-        if(!decoded){
-            throw createError(401,"Invalid access token . please login again")
+ const isLoggedIn = async (req,res,next) => {
+  try {
+    console.log("req.cookies:", req.cookies);
+    console.log("req.headers.cookie:", req.headers.cookie);
 
-        }
-        // console.log(decoded.user);
-        req.user = decoded.user
-        next()
-        
-    }catch(error){
-        return next(error)
+    let token = req.cookies.accessToken;
+
+    if (!token && req.headers.authorization?.startsWith("Bearer ")) {
+      token = req.headers.authorization.split(" ")[1];
     }
- }
+
+    if (!token) throw createError(401,"Access token not found. Please login");
+
+    const decoded = jwt.verify(token, jwtAccessKey);
+    if(!decoded?.id) throw createError(401,"Invalid token");
+
+    const user = await Users.findById(decoded.id).select("-password");
+    if(!user) throw createError(401,"User not found");
+
+    req.user = user;
+    next();
+  } catch (err) {
+    next(err);
+  }
+};
+
  //  user is logout middleware
  const isLoggedOut = async (req,res,next)=>{
     try{

@@ -8,51 +8,25 @@ const { cloudinaryHelper, deleteCloudinaryImage } = require("../helper/cloudinar
 const cloudinary = require("../config/cloudinary")
 
 // handle GET product
-const handleVewProduct = async(req,res,next)=>{
-    try {
-        const search = req.query.search || "";
-        const page = parseInt(req.query.page) || 1 ;
-        const limit = parseInt(req.query.page) || 4;
+const handleVewProduct = async (req, res, next) => {
+  try {
+    const allProducts = await Product.find().populate("categoryId").sort({ createdAt: -1 });
 
-        const searchRegexp = new RegExp('.*'+search+'.*',"i")
-        // user filter
-        const filter = {
-            $or : [
-                {name: {$regex:searchRegexp}},
-            ]
-        }
-
-        const allProducts = await Product.find(filter)
-        .populate('categoryId')
-        .skip((page-1)*limit)
-        .limit(limit)
-        .sort({createdAt: -1})
-
-        if(!allProducts){
-            throw createError(404,'Product not found')
-        }
-
-
-        const count = await Product.find(filter).countDocuments()
-         // success response message
-         return successRespons(res,{
-            statusCode:201,
-            message:'All product vew successfull',
-            payload:{
-                products:allProducts,
-                pagitaion:{
-                    totalPages: Math.ceil(count/limit),
-                    currentPage:page,
-                    prevPage:page-1,
-                    nextPage:page+1,
-                    totalProduct:count
-                }
-            }
-        })
-    } catch (error) {
-        next(error)   
+    if (!allProducts) {
+      return res.status(404).json({ message: "No products found" });
     }
-}
+
+    return res.status(200).json({
+      statusCode: 200,
+      message: "All products fetched successfully",
+      payload: {
+        products: allProducts,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 
 // handle GET product
 const handleVewSingleProduct = async (req, res, next) => {
