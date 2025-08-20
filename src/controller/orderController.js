@@ -8,6 +8,7 @@ const addOrder = async (req, res, next) => {
   
   try {
     const {
+      userId,
       orderItems,
       shippingAddress,
       paymentMethod,
@@ -23,13 +24,10 @@ const addOrder = async (req, res, next) => {
     }
 
     console.log(req.body);
-    console.log("==================");
-    
-    console.log("user",req.user);
     
 
     const order = new Order({
-      user: req.user._id, // comes from auth middleware
+      user: userId, // comes from auth middleware
       orderItems,
       shippingAddress,
       paymentMethod,
@@ -56,8 +54,13 @@ const addOrder = async (req, res, next) => {
 // @access Private
 const getMyOrders = async (req, res, next) => {
   try {
-    const orders = await Order.find({ user: req.user._id });
-    res.json(orders);
+    // const orders = await Order.find({ user: req.user._id });
+    const orders = await Order.find();
+    return successRespons (res,{
+      statusCode:201,
+      message : 'All order',
+      payload :orders
+    })
   } catch (error) {
     console.error("Get Orders Error:", error);
     res.status(500).json({ message: "Server error" });
@@ -70,9 +73,11 @@ const getMyOrders = async (req, res, next) => {
 const getOrderById = async (req, res, next) => {
   try {
     const order = await Order.findById(req.params.id).populate(
-      "user",
+      "user", // <-- match schema field
       "name email"
     );
+
+    console.log("backend order", order);
 
     if (order) {
       res.json(order);

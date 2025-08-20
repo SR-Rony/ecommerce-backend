@@ -5,10 +5,10 @@ const { addOrder, getMyOrders, getOrderById } = require("../../controller/orderC
 const { isLoggedIn } = require("../../middlewares/auth");
 
 // Create new order
-orderRouter.post("/",isLoggedIn, addOrder);
+orderRouter.post("/", addOrder);
 
 // Get logged-in user's orders
-orderRouter.get("/myorders",isLoggedIn, getMyOrders);
+orderRouter.get("/", getMyOrders);
 
 // Get order by ID
 orderRouter.get("/:id", getOrderById);
