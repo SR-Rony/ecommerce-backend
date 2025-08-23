@@ -1,11 +1,13 @@
 const Order = require("../models/orderModel");
+const Product = require("../models/productModel");
 const { successRespons } = require("./respones.controller");
 
 // @desc   Create new order
 // @route  POST /api/orders
 // @access Private (logged-in users only)
 const addOrder = async (req, res, next) => {
-  
+  const session = await Product.startSession();
+  session.startTransaction();
   try {
     const {
       userId,
@@ -16,18 +18,31 @@ const addOrder = async (req, res, next) => {
       shippingPrice,
       totalPrice,
     } = req.body;
-    
-    
 
     if (!orderItems || orderItems.length === 0) {
       return res.status(400).json({ message: "No order items" });
     }
 
-    console.log(req.body);
-    
+    // ✅ Validate & Update stock atomically
+    for (const item of orderItems) {
+      const product = await Product.findOneAndUpdate(
+        { _id: item.productId, quantity: { $gte: item.qty } },
+        { $inc: { quantity: -item.qty, sold: item.qty } },
+        { new: true, session }
+      );
 
+      if (!product) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(400).json({
+          message: `Not enough stock for product ${item.productId}`,
+        });
+      }
+    }
+
+    // ✅ Create order
     const order = new Order({
-      user: userId, // comes from auth middleware
+      user: userId,
       orderItems,
       shippingAddress,
       paymentMethod,
@@ -36,31 +51,37 @@ const addOrder = async (req, res, next) => {
       totalPrice,
     });
 
-    const createdOrder = await order.save();
-    // res.status(201).json(createdOrder);
+    const createdOrder = await order.save({ session });
+
+    await session.commitTransaction();
+    session.endSession();
+
     return successRespons(res, {
       statusCode: 201,
-      message: "Order successfull  created",
-      payload: {order:createdOrder},
+      message: "Order successfully created",
+      payload: { order: createdOrder },
     });
   } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
     console.error("Add Order Error:", error);
-    next(error)
+    next(error);
   }
 };
+
 
 // @desc   Get logged-in user's orders
 // @route  GET /api/orders/myorders
 // @access Private
 const getMyOrders = async (req, res, next) => {
   try {
-    // const orders = await Order.find({ user: req.user._id });
+    // TODO: filter by logged-in user when auth is ready
     const orders = await Order.find();
-    return successRespons (res,{
-      statusCode:201,
-      message : 'All order',
-      payload :orders
-    })
+    return successRespons(res, {
+      statusCode: 200,
+      message: "All orders",
+      payload: orders,
+    });
   } catch (error) {
     console.error("Get Orders Error:", error);
     res.status(500).json({ message: "Server error" });
@@ -73,11 +94,9 @@ const getMyOrders = async (req, res, next) => {
 const getOrderById = async (req, res, next) => {
   try {
     const order = await Order.findById(req.params.id).populate(
-      "user", // <-- match schema field
+      "user",
       "name email"
     );
-
-    console.log("backend order", order);
 
     if (order) {
       res.json(order);
