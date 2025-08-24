@@ -33,7 +33,7 @@ productRoute.put(
   "/:slug",
   isLoggedIn,
   isAdmin,
-  uploadProductImage.single("image"),
+  // uploadProductImage.single("image"),
   runValidation,
   handleUpdateProduct
 );
