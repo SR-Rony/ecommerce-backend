@@ -24,7 +24,7 @@ productRoute.get("/:slug", handleVewSingleProduct);
 // POST create new product
 productRoute.post(
   "/",
-  uploadProductImage.single("image"),
+  // uploadProductImage.single("image"),
   handleCreateProduct
 );
 
