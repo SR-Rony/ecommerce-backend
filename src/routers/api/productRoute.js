@@ -31,10 +31,6 @@ productRoute.post(
 // PUT update product by slug
 productRoute.put(
   "/:slug",
-  isLoggedIn,
-  isAdmin,
-  // uploadProductImage.single("image"),
-  runValidation,
   handleUpdateProduct
 );
 

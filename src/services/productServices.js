@@ -109,14 +109,14 @@ const createProductServices = async (
 // create category service
 const updateProductServices = async (req,slug)=>{
     try {
-    let updateOptions = {new:true,runValidation:true,context:"query"}
+    let updateOptions = {new:true}
     const product = await Product.findOne({slug:slug})
+    
     let updates ={} //update object
-
+    
     // input req.body all key
     for(let key in req.body){
-        console.log(key);
-        if(["name","description","price","quantity","shipping","quantity"].includes(key)){
+        if(["name","price","quantity"].includes(key)){
             updates[key]= req.body[key]
         }
     }
@@ -125,31 +125,35 @@ const updateProductServices = async (req,slug)=>{
         updates.slug = slugify(updates.name)
     }
 
-    const updateImage = req.file?.path;// images path
-    if(updateImage){
-        if(updateImage.size > 1024 * 1024 * 2){
-            throw createError(409,"file to large. It must be less than  2MB")
-        }
-            const respons = await cloudinary.uploader.upload(updateImage,{
-                folder:"mernEcommerce/product"
-            })
-            updates.image = respons.secure_url
+    // const updateImage = req.file?.path;// images path
+    // if(updateImage){
+    //     if(updateImage.size > 1024 * 1024 * 2){
+    //         throw createError(409,"file to large. It must be less than  2MB")
+    //     }
+    //         const respons = await cloudinary.uploader.upload(updateImage,{
+    //             folder:"mernEcommerce/product"
+    //         })
+    //         updates.image = respons.secure_url
         
-        // updates.image=updateImage //images update
-    }
+    //     // updates.image=updateImage //images update
+    // }
     // user update
     const productUpdate = await Product.findOneAndUpdate({slug},updates,updateOptions)
+
+    console.log(productUpdate);
+    
+    
 
     if(!productUpdate){
         throw createError(404,"Product not exsist")
     }
 
-    if(product && product.image){
+    // if(product && product.image){
 
-        const cloudImageId = await cloudinaryHelper(product.image);
-        // cloudinary image delete helper
-        await deleteCloudinaryImage("mernEcommerce/product",cloudImageId,"Product")
-    }
+    //     const cloudImageId = await cloudinaryHelper(product.image);
+    //     // cloudinary image delete helper
+    //     await deleteCloudinaryImage("mernEcommerce/product",cloudImageId,"Product")
+    // }
     // product.image!=="default.png" && deleteImg(product.image) //images delete
 
 

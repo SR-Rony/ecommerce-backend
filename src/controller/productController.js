@@ -109,7 +109,11 @@ const handleCreateProduct = async (req, res, next) => {
 const handleUpdateProduct = async (req, res, next) => {
   try {
     const { slug } = req.params;
+    
     const updateProduct = await updateProductServices(req, slug);
+
+    console.log("dfkjsdag",updateProduct);
+    
 
     return successRespons(res, {
       statusCode: 200,
