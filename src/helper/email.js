@@ -1,24 +1,25 @@
 const nodemailer = require("nodemailer");
-const { smtpUserName, smtpPassword } = require("../secrit");
+const { cfg } = require("../config/env");
 
 
 const transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 587,
-    secure: false, // Use `true` for port 465, `false` for all other ports
-    auth: {
-      user: smtpUserName,
-      pass: smtpPassword
-    },
-  });
+  host: "smtp.gmail.com",
+  port: 587,
+  secure: false,
+  auth: {
+    user: cfg.SMTP_USERNAME,
+    pass: cfg.SMTP_PASSWORD,
+  },
+});
 
   const emailNodmailer =async(emailData)=>{
     try{
       
         const mailOptions ={
-            from: smtpUserName, // sender address
-            to: emailData.email, // list of receivers
-            subject: emailData.subject, // Subject line
+            from: cfg.SMTP_USERNAME,
+            to: emailData.email,
+            subject: emailData.subject,
+            text: emailData.text || emailData.html.replace(/<[^>]+>/g, ""), // fallback
             html: emailData.html, // html body
         }
         await transporter.sendMail(mailOptions);

@@ -10,7 +10,6 @@ const addOrder = async (req, res, next) => {
   session.startTransaction();
   try {
     const {
-      userId,
       orderItems,
       shippingAddress,
       paymentMethod,
@@ -42,7 +41,6 @@ const addOrder = async (req, res, next) => {
 
     // ✅ Create order
     const order = new Order({
-      user: userId,
       orderItems,
       shippingAddress,
       paymentMethod,
@@ -93,10 +91,7 @@ const getMyOrders = async (req, res, next) => {
 // @access Private
 const getOrderById = async (req, res, next) => {
   try {
-    const order = await Order.findById(req.params.id).populate(
-      "user",
-      "name email"
-    );
+    const order = await Order.findById(req.params.id); // ❌ removed populate("user")
 
     if (order) {
       res.json(order);

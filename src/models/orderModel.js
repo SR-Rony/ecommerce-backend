@@ -14,11 +14,6 @@ const orderItemSchema = new mongoose.Schema({
 
 const orderSchema = new mongoose.Schema(
   {
-    user: {
-      type: mongoose.Schema.Types.ObjectId,
-      required: true,
-      ref: "Users",
-    },
     orderItems: [orderItemSchema],
     shippingAddress: {
       fullName: { type: String, required: true },

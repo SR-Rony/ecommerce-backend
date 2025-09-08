@@ -1,63 +1,41 @@
 const express = require('express');
-const cors = require('cors')
-const morgan = require('morgan')
-const cookieParser = require("cookie-parser")
-const createError = require('http-errors')
-const rateLimit = require('express-rate-limit')
+const morgan = require('morgan');
+const createError = require('http-errors');
 const route = require("./routers/route");
 const { errorRespons } = require('./controller/respones.controller');
-const { clientUrl } = require('./secrit');
+const { applySecurity } = require('./middlewares/security');
+const { httpLogger } = require('./utils/logger');
 
 const app = express();
-// server rate limite
-const rateLimiter = rateLimit({
-    window : 1* 60 * 1000 ,//1 minute
-    max : 2,
-    message : "sorry please try again"
 
-})
+// Apply logging first
+app.use(morgan("dev"));
 
-app.use(cookieParser())
+// Apply all security middlewares (CORS, Helmet, Rate-limit, Sanitizers, etc.)
+applySecurity(app);
 
-const allowedOrigins = [
-  'http://localhost:3000',
-  'https://next-project-chi-five.vercel.app'
-];
+// API routes
+app.use(route);
 
-app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true // ✅ allows sending cookies cross-domain
-}));
+// http logger
+app.use(httpLogger());
 
-// app.use(rateLimiter)
-app.use(morgan("dev"))
-app.use(express.json())
-app.use(express.urlencoded({extended:true}))
+// Root route
+app.get("/", (req, res) => {
+    res.status(200).send('Welcome to my server');
+});
 
-// api routers
-app.use(route)
+// 404 handler
+app.use((req, res, next) => {
+    next(createError(404, "404 page not found"));
+});
 
-app.get("/",(req,res)=>{
-    res.status(200).send('welcome to my server')
-})
-
-// client error
-app.use((req,res,next)=>{
-    next(createError(404,"404 page is not found"))
-})
-
-// server all error handle
-app.use((err,req,res,next)=>{
-    return errorRespons(res,{
-        message : err.message,
-        statusCode : err.status
-    })
-})
+// Global error handler
+app.use((err, req, res, next) => {
+    return errorRespons(res, {
+        message: err.message,
+        statusCode: err.status || 500
+    });
+});
 
 module.exports = app;

@@ -7,22 +7,22 @@ const seedRoute = require("./seed.route")
 const userRoute = require("./user.route")
 
 // user route
-route.use("/user",userRoute) //localhost:400/api/v1/users
+route.use("/user",userRoute) //localhost:4000/api/user
 
 // auth route
-route.use("/auth",authRoute) //localhost:400/api/v1/auth
+route.use("/auth",authRoute) //localhost:4000/api/auth
 
 // seeduser route
-route.use("/seeduser",seedRoute) //localhost:400/api/v1/seeduser
+route.use("/seeduser",seedRoute) //localhost:4000/api/seeduser
 
 // category router
-route.use("/category",categoryRoute) //localhost:400/api/v1/category
+route.use("/category",categoryRoute) //localhost:4000/api/category
 
 // Product router
-route.use("/product",productRoute) //localhost:400/api/v1/product
+route.use("/product",productRoute) //localhost:4000/api/product
 
 //order router
-route.use("/orders",orderRouter) //localhost:400/api/v1/product
+route.use("/orders",orderRouter) //localhost:4000/api/orders
 
 
 module.exports = route

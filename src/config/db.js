@@ -1,20 +1,19 @@
-const mongoose = require("mongoose")
-const { mongosseUrl } = require("../secrit")
+const mongoose = require("mongoose");
+const { cfg } = require("./env"); // ✅ load from env.js
 
+const connectDB = async () => {
+  try {
+    await mongoose.connect(cfg.MONGODB_URL, {
+      serverSelectionTimeoutMS: 10000, // avoid infinite wait
+    });
 
-const connectDB = async()=>{
-    try{
-        await mongoose.connect(mongosseUrl)
+    mongoose.connection.on("error", (error) => {
+      console.error("❌ MongoDB connection error:", error.message);
+    });
+  } catch (error) {
+    console.error(`❌ MongoDB connection failed: ${error.message}`);
+    process.exit(1); // Exit if DB connection fails
+  }
+};
 
-        console.log('server is connect');
-
-        mongoose.connection.on("error",(error)=>{
-            console.error('server is not connect')
-        })
-    }catch(error){
-        // console.error(`error hear : ${error}`);
-        console.error(`error hear :${error}`);
-    }
-}
-
-module.exports = connectDB
+module.exports = connectDB;

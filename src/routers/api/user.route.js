@@ -16,25 +16,24 @@ const { userRegistationValidate, updatePasswordValidate, userForgatePassword, us
 const {isLoggedIn, isLoggedOut, isAdmin} = require("../../middlewares/auth")
 const { uploadUserImage } = require("../../middlewares/uplodFile")
 
-// user register route: localhost:400/api/v1/users/register
-// route.post("/register",handleRegister)
+// user register route: localhost:4000/api/user/register
 route.post("/register",isLoggedOut, handleRegister)
 
-// user verify route: localhost:400/api/v1/users/verify
+// user verify route: localhost:4000/api/user/verify
 route.post("/verify",isLoggedOut,handleUserVerify)
 
-// all get user: localhost:400/api/v1/users/
-// route.get("/",isLoggedIn,isAdmin,handleGetUsers)
-route.get("/",handleGetUsers)
+// all get user: localhost:4000/api/user
+route.get("/",isLoggedIn,isAdmin,handleGetUsers)
+// route.get("/",handleGetUsers)
 
 // single get user: localhost:400/api/v1/users/:id
 route.get("/:id([0-9a-fA-F]{24})",isLoggedIn,handleGetSingleUser)
 
 // delete user: localhost:400/api/v1/users/:id
-route.delete("/:id",handleDeleteUser)
+route.delete("/:id",isLoggedIn,isAdmin,handleDeleteUser)
 
 // update user:  localhost:400/api/v1/users/update/:id
-route.put("/update/:id([0-9a-fA-F]{24})",handleUpdateUser)
+route.put("/update/:id([0-9a-fA-F]{24})",isLoggedIn,isAdmin,handleUpdateUser)
 
 // user new password set: localhost:400/api/v1/users/update-password
 route.put("/update-password/:id([0-9a-fA-F]{24})",isLoggedIn,updatePasswordValidate,handleUpdatePassword)
