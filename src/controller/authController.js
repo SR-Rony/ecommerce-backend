@@ -20,7 +20,7 @@ const handleLogin = async (req, res, next) => {
     const accessToken = createJsonWebToken(
       { id: user._id },
       cfg.JWT_ACCESS_KEY,
-      "15m"
+      "1d"
     );
     const refreshToken = createJsonWebToken(
       { id: user._id },
