@@ -7,8 +7,6 @@ const { cfg } = require("../config/env"); // ✅ use env.js
 const isLoggedIn = async (req, res, next) => {
   try {
     let token = req.cookies?.accessToken;
-
-    console.log("login",token);
     
 
     // Also support Bearer token from Authorization header
