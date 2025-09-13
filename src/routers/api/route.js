@@ -1,6 +1,7 @@
 const route = require("express").Router()
 const authRoute = require("./auth.route")
 const categoryRoute = require("./categoryRoute")
+const couponRouter = require("./couponRoute")
 const orderRouter = require("./order.route")
 const productRoute = require("./productRoute")
 const seedRoute = require("./seed.route")
@@ -23,6 +24,9 @@ route.use("/product",productRoute) //localhost:4000/api/product
 
 //order router
 route.use("/orders",orderRouter) //localhost:4000/api/orders
+
+// coupon route
+route.use("/coupons",couponRouter) //localhost:4000/api/orders
 
 
 module.exports = route

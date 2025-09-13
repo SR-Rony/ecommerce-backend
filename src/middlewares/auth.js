@@ -8,6 +8,9 @@ const isLoggedIn = async (req, res, next) => {
   try {
     let token = req.cookies?.accessToken;
 
+    console.log("login",token);
+    
+
     // Also support Bearer token from Authorization header
     if (!token && req.headers.authorization?.startsWith("Bearer ")) {
       token = req.headers.authorization.split(" ")[1];
@@ -57,6 +60,9 @@ const isLoggedOut = async (req, res, next) => {
 //============ admin check middleware ============
 const isAdmin = async (req, res, next) => {
   try {
+
+    console.log('admin');
+    
     
     if (!req.user?.isAdmin) {
       throw createError(
