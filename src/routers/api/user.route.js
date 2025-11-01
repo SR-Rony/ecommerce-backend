@@ -27,7 +27,7 @@ route.get("/",isLoggedIn,isAdmin,handleGetUsers)
 // route.get("/",handleGetUsers)
 
 // single get user: localhost:400/api/v1/users/:id
-route.get("/:id([0-9a-fA-F]{24})",isLoggedIn,handleGetSingleUser)
+route.get("/:id",isLoggedIn,isAdmin,handleGetSingleUser)
 
 // delete user: localhost:400/api/v1/users/:id
 route.delete("/:id",isLoggedIn,isAdmin,handleDeleteUser)
@@ -39,11 +39,11 @@ route.put("/update/:id([0-9a-fA-F]{24})",isLoggedIn,isAdmin,handleUpdateUser)
 route.put("/update-password/:id([0-9a-fA-F]{24})",isLoggedIn,updatePasswordValidate,handleUpdatePassword)
 
 // user forget password set: localhost:400/api/v1/users/forget-password
-route.post("/forgot-password", handleForgotPassword)
+route.post("/forgot-password",isLoggedOut ,handleForgotPassword)
 // route.post("/forgot-password",isLoggedOut,userForgatePassword,runValidation, handleForgatePassword)
 
 // user reset password :localhost:400/api/v1/users/reset-password
-route.put("/reset-password", handleResetPassword)
+route.put("/reset-password",isLoggedIn, handleResetPassword)
 // route.put("/reset-password",isLoggedOut,userResetPassword,runValidation, handleResetPassword)
 
 // handle manage user: localhost:400/api/v1/users/manage-user

@@ -105,21 +105,45 @@ const handleGetUsers = async (req, res, next) => {
 };
 
 // ======== single get user ======= //
+// ✅ Get Single User Controller
 const handleGetSingleUser = async (req, res, next) => {
   try {
-    const id = req.params.id;
-    const option = { password: 0 };
-    const singleUser = await findWithIdService(Users, id, option);
+    const { id } = req.params;
+    
 
+    // ✅ Validate ID (if using MongoDB)
+    if (!id || id.length !== 24) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid user ID format",
+      });
+    }
+
+    // ✅ Exclude password from result
+    const projection = { password: 0 };
+
+    const singleUser = await findWithIdService(Users, id, projection);
+
+    // ✅ If user not found
+    if (!singleUser) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // ✅ Success response
     return successRespons(res, {
       statusCode: 200,
-      message: "Single user returned",
+      message: "Single user returned successfully",
       payload: { user: singleUser },
     });
   } catch (error) {
+    console.error("Error fetching single user:", error.message);
     next(error);
   }
 };
+
 
 // ====== update user ======= //
 const handleUpdateUser = async (req, res, next) => {

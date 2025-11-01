@@ -21,16 +21,22 @@ function applySecurity(app) {
 
   // CORS with allowlist
   const allowlist = new Set(cfg.corsOrigins);
-  app.use(cors({
-    origin(origin, cb) {
-      if (!origin) return cb(null, true); // non-browser clients
-      if (allowlist.size === 0 || allowlist.has(origin)) return cb(null, true);
-      return cb(new Error('Not allowed by CORS'));
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-  }));
+  app.use(
+    cors({
+      origin(origin, callback) {
+        if (!origin) return callback(null, true); // allow non-browser requests
+        if (allowlist.has(origin)) {
+          return callback(null, true);
+        } else {
+          console.log("❌ Blocked by CORS:", origin);
+          return callback(new Error("Not allowed by CORS"));
+        }
+      },
+      credentials: true,
+      methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+      allowedHeaders: ["Content-Type", "Authorization"],
+    })
+  );
 
   // Helmet (with basic CSP example commented)
   app.use(helmet());
