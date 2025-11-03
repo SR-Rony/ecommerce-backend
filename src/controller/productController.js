@@ -1,4 +1,6 @@
 const createError = require("http-errors");
+const streamifier = require("streamifier");
+const path = require("path");
 const slugify = require("slugify");
 const Product = require("../models/productModel");
 const { successRespons } = require("./respones.controller");
@@ -60,45 +62,37 @@ const handleCreateProduct = async (req, res, next) => {
     const { name, description, price, quantity, shipping, categoryId } = req.body;
     const file = req.file;
 
-    if (!name || !description || !price || !quantity || !categoryId) {
-      throw createError(400, "All required fields must be filled.");
-    }
+    if (!file) throw createError(400, "Image file is required");
 
-    const productExists = await Product.exists({ name });
-    if (productExists) {
-      throw createError(409, "Product name already exists");
-    }
+    const uploadStream = cloudinary.uploader.upload_stream(
+      { folder: "mernEcommerce/product" },
+      async (error, result) => {
+        if (error) return next(error);
 
-    if (!file) {
-      throw createError(400, "Image file is required");
-    }
+        const newProduct = await Product.create({
+          name,
+          slug: slugify(name),
+          description,
+          price,
+          quantity,
+          shipping: shipping === "1" || shipping === true,
+          image: result.secure_url,
+          categoryId,
+        });
 
-    if (file.size > 1024 * 1024 * 2) {
-      throw createError(400, "File too large. Max size is 2MB");
-    }
+        return res.status(201).json({
+          status: "success",
+          message: "Product created successfully",
+          payload: newProduct,
+        });
+      }
+    );
 
-    // Upload to Cloudinary
-    const result = await cloudinary.uploader.upload(file.path, {
-      folder: "mernEcommerce/product",
-    });
+    // pipe buffer directly to cloudinary
+    streamifier.createReadStream(file.buffer).pipe(uploadStream);
 
-    const newProduct = await Product.create({
-      name,
-      slug: slugify(name),
-      description,
-      price,
-      quantity,
-      shipping: shipping === "1" || shipping === true,
-      image: result.secure_url,
-      categoryId,
-    });
-
-    return successRespons(res, {
-      statusCode: 201,
-      message: "Product was created successfully",
-      payload: newProduct,
-    });
   } catch (error) {
+    console.error("❌ Error in handleCreateProduct:", error);
     next(error);
   }
 };
@@ -130,17 +124,18 @@ const handleUpdateProduct = async (req, res, next) => {
  */
 const handleDeleteProduct = async (req, res, next) => {
   try {
-    const { slug } = req.params;
-    const deleteProduct = await Product.findOneAndDelete({ slug });
+    const { id } = req.params; 
+    const deleteProduct = await Product.findByIdAndDelete(id);
 
     if (!deleteProduct) {
       throw createError(404, "Product not found");
     }
 
+    // Delete image from Cloudinary
     if (deleteProduct.image) {
       const cloudImageId = await cloudinaryHelper(deleteProduct.image);
       await deleteCloudinaryImage("mernEcommerce/product", cloudImageId, "Product");
-      await deleteImg(deleteProduct.image);
+      // No need to delete local file since memoryStorage
     }
 
     return successRespons(res, {
@@ -152,6 +147,7 @@ const handleDeleteProduct = async (req, res, next) => {
     next(error);
   }
 };
+
 
 /**
  * @desc Get stock for multiple products

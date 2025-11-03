@@ -22,9 +22,8 @@ productRoute.get("/", handleVewProduct);
 productRoute.get("/:slug", handleVewSingleProduct);
 
 // POST create new product
-productRoute.post(
-  "/",
-  // uploadProductImage.single("image"),
+productRoute.post( "/", 
+  uploadProductImage.single("image"),
   handleCreateProduct
 );
 
@@ -35,7 +34,7 @@ productRoute.put(
 );
 
 // DELETE product by slug
-productRoute.delete("/:slug", handleDeleteProduct);
+productRoute.delete("/:id", handleDeleteProduct);
 
 // POST check stock for multiple products
 productRoute.post("/stock", handleGetStock);
