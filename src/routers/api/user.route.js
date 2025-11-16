@@ -13,40 +13,41 @@ const {
 } = require("../../controller/user.controller")
 const runValidation = require("../../middlewares/validators")
 const { userRegistationValidate, updatePasswordValidate, userForgatePassword, userResetPassword } = require("../../middlewares/validators/auth")
-const {isLoggedIn, isLoggedOut, isAdmin} = require("../../middlewares/auth")
+const { isAdmin} = require("../../middlewares/auth")
 const { uploadUserImage } = require("../../middlewares/uplodFile")
+const attachUser = require("../../middlewares/validators/attachUser")
 
 // user register route: localhost:4000/api/user/register
-route.post("/register",isLoggedOut, handleRegister)
+route.post("/register",handleRegister)
 
 // user verify route: localhost:4000/api/user/verify
-route.post("/verify",isLoggedOut,handleUserVerify)
+route.post("/verify",handleUserVerify)
 
 // all get user: localhost:4000/api/user
-route.get("/",isLoggedIn,isAdmin,handleGetUsers)
+route.get("/",attachUser,isAdmin,handleGetUsers)
 // route.get("/",handleGetUsers)
 
 // single get user: localhost:400/api/v1/users/:id
-route.get("/:id",isLoggedIn,isAdmin,handleGetSingleUser)
+route.get("/:id",attachUser,isAdmin,handleGetSingleUser)
 
 // delete user: localhost:400/api/v1/users/:id
-route.delete("/:id",isLoggedIn,isAdmin,handleDeleteUser)
+route.delete("/:id",isAdmin,handleDeleteUser)
 
 // update user:  localhost:400/api/v1/users/update/:id
-route.put("/update/:id([0-9a-fA-F]{24})",isLoggedIn,isAdmin,handleUpdateUser)
+route.put("/update/:id([0-9a-fA-F]{24})",isAdmin,handleUpdateUser)
 
 // user new password set: localhost:400/api/v1/users/update-password
-route.put("/update-password/:id([0-9a-fA-F]{24})",isLoggedIn,updatePasswordValidate,handleUpdatePassword)
+route.put("/update-password/:id([0-9a-fA-F]{24})",updatePasswordValidate,handleUpdatePassword)
 
 // user forget password set: localhost:400/api/v1/users/forget-password
-route.post("/forgot-password",isLoggedOut ,handleForgotPassword)
+route.post("/forgot-password",handleForgotPassword)
 // route.post("/forgot-password",isLoggedOut,userForgatePassword,runValidation, handleForgatePassword)
 
 // user reset password :localhost:400/api/v1/users/reset-password
-route.put("/reset-password",isLoggedIn, handleResetPassword)
+route.put("/reset-password", handleResetPassword)
 // route.put("/reset-password",isLoggedOut,userResetPassword,runValidation, handleResetPassword)
 
 // handle manage user: localhost:400/api/v1/users/manage-user
-route.put("/manage-user/:id([0-9a-fA-F]{24})",isLoggedIn,isAdmin,handleManageUser)
+route.put("/manage-user/:id([0-9a-fA-F]{24})",isAdmin,handleManageUser)
 
 module.exports = route

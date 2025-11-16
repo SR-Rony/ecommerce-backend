@@ -21,6 +21,8 @@ function applySecurity(app) {
 
   // CORS with allowlist
   const allowlist = new Set(cfg.corsOrigins);
+
+  console.log("CORS Allowlist:", allowlist);
   app.use(
     cors({
       origin(origin, callback) {
@@ -61,7 +63,7 @@ function applySecurity(app) {
   }));
 
   // Stricter limit for auth endpoints
-  app.use(['/api/auth/login', '/api/auth/refresh-token'], rateLimit({
+  app.use('/api/auth/login', rateLimit({
     windowMs: 5 * 60 * 1000,
     max: 20,
   }));

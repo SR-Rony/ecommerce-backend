@@ -9,33 +9,31 @@ const { cfg } = require("../config/env");
 //============ user login ============
 const handleLogin = async (req, res, next) => {
   try {
-    const { email, password } = req.body;
-    const user = await Users.findOne({ email }).select("+password");
+    const { phone, password } = req.body;
+    if (!phone || !password) throw createError(400, "Phone number and password are required");
+
+    const user = await Users.findOne({ phone });
     if (!user) throw createError(404, "User not found");
+    if (!user.isVerified) throw createError(401, "User not verified");
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) throw createError(401, "Invalid password");
 
-    const accessToken = createJsonWebToken({ id: user._id }, cfg.JWT_ACCESS_KEY, "15m");
-    const refreshToken = createJsonWebToken({ id: user._id }, cfg.JWT_REFRESH_KEY, "7d");
-
-    const cookieOptions = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-      path: "/",
-    };
-
-    // Set Cookies
-    res.cookie("accessToken", accessToken, { ...cookieOptions, maxAge: 15 * 60 * 1000 });
-    res.cookie("refreshToken", refreshToken, { ...cookieOptions, maxAge: 7 * 24 * 60 * 60 * 1000 });
-
+    // Remove password before sending
     const userWithoutPassword = user.toObject();
     delete userWithoutPassword.password;
 
+    // ✅ Set cookie for frontend (1 day expiry)
+    res.cookie("user", JSON.stringify(userWithoutPassword), {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 24 * 60 * 60 * 1000,
+    });
+
     return res.status(200).json({
       statusCode: 200,
-      message: "User login successful",
+      message: "Login successful",
       payload: { user: userWithoutPassword },
     });
   } catch (err) {
@@ -44,63 +42,11 @@ const handleLogin = async (req, res, next) => {
 };
 
 
-//============ refresh token ============
-const handleRefreshToken = async (req, res, next) => {
-  try {
-    const oldRefreshToken = req.cookies.refreshToken;
-    if (!oldRefreshToken) throw createError(401, "No refresh token provided.");
-
-    const decoded = jwt.verify(oldRefreshToken, cfg.JWT_REFRESH_KEY);
-    if (!decoded?.id) throw createError(401, "Invalid refresh token.");
-
-    const newAccessToken = createJsonWebToken({ id: decoded.id }, cfg.JWT_ACCESS_KEY, "15m");
-
-    res.cookie("accessToken", newAccessToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-      path: "/",
-      maxAge: 15 * 60 * 1000,
-    });
-
-    return res.status(200).json({
-      statusCode: 200,
-      message: "New access token created successfully",
-      payload: { accessToken: newAccessToken },
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-
-//============ protected route ============
-const handleProtected = async (req, res, next) => {
-  try {
-    const accessToken = req.cookies.accessToken;
-    if (!accessToken) throw createError(401, "No access token found.");
-
-    const decoded = jwt.verify(accessToken, cfg.JWT_ACCESS_KEY);
-    if (!decoded?.id) throw createError(401, "Invalid access token.");
-
-    return res.status(200).json({
-      statusCode: 200,
-      message: "Protected access successful",
-      payload: { userId: decoded.id },
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-
 //============ logout ============
-const handleLogout = async (req, res, next) => {
+const handleLogout = (req, res, next) => {
   try {
-    res.clearCookie("accessToken", { path: "/" });
-    res.clearCookie("refreshToken", { path: "/" });
-
-    return successRespons(res, {
+    res.clearCookie("user", { path: "/" });
+    return res.status(200).json({
       statusCode: 200,
       message: "User logout successful",
     });
@@ -110,9 +56,5 @@ const handleLogout = async (req, res, next) => {
 };
 
 
-module.exports = {
-  handleLogin,
-  handleLogout,
-  handleRefreshToken,
-  handleProtected,
-};
+
+module.exports = { handleLogin, handleLogout};

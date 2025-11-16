@@ -8,10 +8,11 @@ const {
   handleGetStock,
   handleBuyProduct, // <-- import buy handler
 } = require('../../controller/productController');
-const { isLoggedIn, isAdmin } = require('../../middlewares/auth');
+const { isAdmin } = require('../../middlewares/auth');
 const { validateProduct } = require('../../middlewares/validators/product');
 const runValidation = require('../../middlewares/validators');
 const { uploadProductImage } = require('../../middlewares/uplodFile');
+const attachUser = require('../../middlewares/validators/attachUser');
 
 const productRoute = express.Router();
 
@@ -22,7 +23,7 @@ productRoute.get("/", handleVewProduct);
 productRoute.get("/:slug", handleVewSingleProduct);
 
 // POST create new product
-productRoute.post( "/", 
+productRoute.post( "/",attachUser,isAdmin, 
   uploadProductImage.single("image"),
   handleCreateProduct
 );

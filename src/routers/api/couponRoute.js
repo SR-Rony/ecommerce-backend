@@ -1,16 +1,16 @@
 const express = require("express");
-const { isLoggedIn, isAdmin } = require("../../middlewares/auth");
+const { isAdmin } = require("../../middlewares/auth");
 const { createCoupon, getCoupons, updateCoupon, deleteCoupon, applyCoupon } = require("../../controller/couponController");
 
 const couponRouter = express.Router();
 
 // Admin routes
-couponRouter.post("/", isLoggedIn, isAdmin, createCoupon);
-couponRouter.get("/", isLoggedIn, isAdmin, getCoupons);
-couponRouter.put("/:id", isLoggedIn, isAdmin, updateCoupon);
-couponRouter.delete("/:id", isLoggedIn, isAdmin, deleteCoupon);
+couponRouter.post("/",  isAdmin, createCoupon);
+couponRouter.get("/", isAdmin, getCoupons);
+couponRouter.put("/:id", isAdmin, updateCoupon);
+couponRouter.delete("/:id", isAdmin, deleteCoupon);
 
 // User route
-couponRouter.post("/apply", isLoggedIn, applyCoupon);
+couponRouter.post("/apply", applyCoupon);
 
 module.exports = couponRouter;

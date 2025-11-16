@@ -1,6 +1,7 @@
 const createError = require("http-errors");
-const Users = require("../models/userModel");
+const User = require("../models/userModel");
 const jwt = require("jsonwebtoken");
+const bcrypt = require("bcryptjs");
 
 const { successRespons } = require("./respones.controller");
 const { findWithIdService } = require("../services/findItem");
@@ -13,45 +14,40 @@ const {
   UserActionService,
   updatePasswordService 
 } = require("../services/userServices");
-const { cfg } = require("../config/env"); // ✅ replaced secrit.js
-const { cloudinaryHelper, deleteCloudinaryImage } = require("../helper/cloudinaryHelper");
+const { cfg } = require("../config/env");
+const otpStore = new Map();
 
 // ============== user register ============ //
 const handleRegister = async (req, res, next) => {
   try {
-    const { name, email, phone, password } = req.body;
+    const { name, phone, password } = req.body;
+    
 
-    const userExists = await Users.exists({ email });
-    if (userExists) {
-      throw createError(409, "User with this email already exists. Please login.");
+    if (!name || !phone || !password) {
+      throw createError(400, "Name, phone and password are required");
     }
 
-    const token = createJsonWebToken(
-      { name, email, phone, password },
-      cfg.JWT_ACTIVATION_KEY,
-      "10m"
-    );
-
-    const emailData = {
-      email,
-      subject: "Account Activation Email",
-      html: `
-        <h1>Hello ${name}</h1>
-        <p>Please click the link below to verify your email:</p>
-        <a href="${cfg.CLIENT_URL}/user/verify/${token}" target="_blank">Activate your account</a>
-      `,
-    };
-
-    try {
-      await emailNodmailer(emailData);
-    } catch (emailError) {
-      return next(createError(500, "Failed to send verification email"));
+    // check if user already exists
+    const existingUser = await User.findOne({ phone });
+    if (existingUser) {
+      throw createError(409, "User with this phone already exists. Please login.");
     }
+
+    // ✅ Step 1: Generate OTP (simulate sending SMS)
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    otpStore.set(phone, { otp, expires: Date.now() + 5 * 60 * 1000 }); // 5 min validity
+
+    console.log(`📲 OTP for ${phone}: ${otp}`); // simulate SMS sending
+
+    // ✅ Step 2: Temporarily hold user data (hashed password) until OTP verified
+    const hashedPassword = bcrypt.hashSync(password, 10);
+
+    // save user data temporarily in token or cache (for simplicity use Map)
+    otpStore.get(phone).pendingUser = { name, phone, password: hashedPassword };
 
     return successRespons(res, {
       statusCode: 200,
-      message: `Please check your email (${email}) to complete the registration process.`,
-      payload: { token },
+      message: `OTP sent successfully to ${phone}. Please verify to complete registration.`,
     });
   } catch (error) {
     next(error);
@@ -61,34 +57,46 @@ const handleRegister = async (req, res, next) => {
 // ============== user verify ============ //
 const handleUserVerify = async (req, res, next) => {
   try {
-    const { token } = req.body;
-    if (!token) throw createError(400, "Token is missing");
+    const { phone, otp } = req.body;
 
-    let decoded;
-    try {
-      decoded = jwt.verify(token, cfg.JWT_ACTIVATION_KEY);
-    } catch (error) {
-      if (error.name === "TokenExpiredError") throw createError(410, "Token has expired");
-      if (error.name === "JsonWebTokenError") throw createError(401, "Invalid token");
-      throw error;
-    }
+    const stored = otpStore.get(String(phone));
 
-    const { email } = decoded;
-    const userExists = await Users.exists({ email });
-    if (userExists) throw createError(409, "User already verified. Please login.");
+    if (!stored) throw createError(400, "No OTP found for this phone number");
+    if (stored.expires < Date.now()) throw createError(400, "OTP expired");
+    if (String(stored.otp) !== String(otp)) throw createError(400, "Invalid OTP");
 
-    await Users.create(decoded);
+    const { name, password } = stored.pendingUser;
+
+    const user = await User.create({
+      name,
+      phone,
+      password,
+      isVerified: true,
+    });
+
+    otpStore.delete(String(phone));
 
     return successRespons(res, {
-      statusCode: 200,
-      message: "User registered and verified successfully",
+      statusCode: 201,
+      message: "✅ Phone verified and user registered successfully!",
+      payload: {
+        user: {
+          id: user._id,
+          name: user.name,
+          phone: user.phone,
+          role: user.role,
+          isVerified: user.isVerified,
+        },
+      },
     });
   } catch (error) {
+    console.error("Verification Error:", error);
     next(error);
   }
 };
 
-// ======== get all users ======== //
+
+// ======== get all user ======== //
 const handleGetUsers = async (req, res, next) => {
   try {
     const search = req.query.search || "";
@@ -104,53 +112,34 @@ const handleGetUsers = async (req, res, next) => {
   }
 };
 
-// ======== single get user ======= //
-// ✅ Get Single User Controller
+// ======== get single user ======== //
 const handleGetSingleUser = async (req, res, next) => {
   try {
     const { id } = req.params;
-    
 
-    // ✅ Validate ID (if using MongoDB)
     if (!id || id.length !== 24) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid user ID format",
-      });
+      throw createError(400, "Invalid user ID format");
     }
 
-    // ✅ Exclude password from result
     const projection = { password: 0 };
+    const singleUser = await findWithIdService(User, id, projection);
+    if (!singleUser) throw createError(404, "User not found");
 
-    const singleUser = await findWithIdService(Users, id, projection);
-
-    // ✅ If user not found
-    if (!singleUser) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found",
-      });
-    }
-
-    // ✅ Success response
     return successRespons(res, {
       statusCode: 200,
-      message: "Single user returned successfully",
+      message: "Single user retrieved successfully",
       payload: { user: singleUser },
     });
   } catch (error) {
-    console.error("Error fetching single user:", error.message);
     next(error);
   }
 };
-
 
 // ====== update user ======= //
 const handleUpdateUser = async (req, res, next) => {
   try {
     const updateId = req.params.id;
-    const option = { password: 0 };
-    const user = await findWithIdService(Users, updateId, option);
+    const user = await findWithIdService(User, updateId, { password: 0 });
     if (!user) throw createError(404, "User not found");
 
     const updates = {};
@@ -162,25 +151,22 @@ const handleUpdateUser = async (req, res, next) => {
       }
     }
 
-    const userUpdate = await Users.findByIdAndUpdate(updateId, updates, {
+    const updatedUser = await User.findByIdAndUpdate(updateId, updates, {
       new: true,
       runValidators: true,
-      context: "query",
     }).select("-password");
-
-    if (!userUpdate) throw createError(404, "User was not updated");
 
     return successRespons(res, {
       statusCode: 200,
       message: "User updated successfully",
-      payload: { user: userUpdate },
+      payload: { user: updatedUser },
     });
   } catch (error) {
     next(error);
   }
 };
 
-// ====== ban user ======= //
+// ====== manage user (ban/unban etc.) ======= //
 const handleManageUser = async (req, res, next) => {
   try {
     const userId = req.params.id;
@@ -230,7 +216,7 @@ const handleForgotPassword = async (req, res, next) => {
 
     return successRespons(res, {
       statusCode: 200,
-      message: `Please check your email (${email}) to reset your password`,
+      message: `Please check your email (${email}) to reset your password.`,
     });
   } catch (error) {
     next(error);
@@ -257,18 +243,18 @@ const handleResetPassword = async (req, res, next) => {
 const handleDeleteUser = async (req, res, next) => {
   try {
     const id = req.params.id;
-    const option = { password: 0 };
-    const user = await findWithIdService(Users, id, option);
+    const user = await findWithIdService(User, id, { password: 0 });
+    if (!user) throw createError(404, "User not found");
 
-    if (!user) return next(createError(404, "User not found"));
+    if (user.role === "admin") {
+      throw createError(403, "Admin accounts cannot be deleted");
+    }
 
-    const deletedUser = await Users.findOneAndDelete({ _id: id, isAdmin: false });
-    if (!deletedUser) return next(createError(403, "Admin accounts cannot be deleted"));
+    await User.findByIdAndDelete(id);
 
     return successRespons(res, {
       statusCode: 200,
       message: "User deleted successfully",
-      payload: { user },
     });
   } catch (error) {
     next(error);

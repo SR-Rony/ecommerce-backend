@@ -21,7 +21,7 @@ const envSchema = z
     SMTP_PASSWORD: z.string().min(8, "SMTP_PASSWORD must be at least 8 characters"),
 
     // CORS origins
-    ADMIN_DASHBOARD: z.string().url("ADMIN_DASHBOARD must be a valid URL"),
+    // ADMIN_DASHBOARD: z.string().url("ADMIN_DASHBOARD must be a valid URL"),
     CLIENT_URL: z.string().url("CLIENT_URL must be a valid URL"),
 
     // Cloudinary
@@ -46,7 +46,7 @@ function validateEnv() {
 
   // ✅ Setup CORS origins
   cfg.corsOrigins = [
-    cfg.ADMIN_DASHBOARD,
+    // cfg.ADMIN_DASHBOARD,
     cfg.CLIENT_URL,
   ].filter(Boolean);
 

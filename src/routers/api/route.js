@@ -4,7 +4,6 @@ const categoryRoute = require("./categoryRoute")
 const couponRouter = require("./couponRoute")
 const orderRouter = require("./order.route")
 const productRoute = require("./productRoute")
-const seedRoute = require("./seed.route")
 const userRoute = require("./user.route")
 
 // user route
@@ -12,9 +11,6 @@ route.use("/user",userRoute) //localhost:4000/api/user
 
 // auth route
 route.use("/auth",authRoute) //localhost:4000/api/auth
-
-// seeduser route
-route.use("/seeduser",seedRoute) //localhost:4000/api/seeduser
 
 // category router
 route.use("/category",categoryRoute) //localhost:4000/api/category

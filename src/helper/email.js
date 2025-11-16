@@ -3,12 +3,13 @@ const { cfg } = require("../config/env");
 
 
 const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false,
+  service: "gmail",
   auth: {
     user: cfg.SMTP_USERNAME,
     pass: cfg.SMTP_PASSWORD,
+  },
+  tls: {
+    rejectUnauthorized: false,
   },
 });
 

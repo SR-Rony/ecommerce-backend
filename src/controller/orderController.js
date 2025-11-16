@@ -6,9 +6,17 @@ const { successRespons } = require("./respones.controller");
 // @route  POST /api/orders
 // @access Private (logged-in users only)
 const addOrder = async (req, res, next) => {
-  const session = await Product.startSession();
-  session.startTransaction();
   try {
+    // 🔒 Login check
+    if (!req.user) {
+      console.log("req user",req.user);
+      return res.status(401).json({ message: "Login required to place order" });
+      
+    }
+
+    const session = await Product.startSession();
+    session.startTransaction();
+
     const {
       orderItems,
       shippingAddress,
@@ -22,7 +30,7 @@ const addOrder = async (req, res, next) => {
       return res.status(400).json({ message: "No order items" });
     }
 
-    // ✅ Validate & Update stock atomically
+    // ✅ Stock decrease atomically
     for (const item of orderItems) {
       const product = await Product.findOneAndUpdate(
         { _id: item.productId, quantity: { $gte: item.qty } },
@@ -39,7 +47,7 @@ const addOrder = async (req, res, next) => {
       }
     }
 
-    // ✅ Create order
+    // ✅ Create order with logged-in user only
     const order = new Order({
       orderItems,
       shippingAddress,
@@ -47,6 +55,7 @@ const addOrder = async (req, res, next) => {
       itemsPrice,
       shippingPrice,
       totalPrice,
+      user: req.user._id, // logged-in user
     });
 
     const createdOrder = await order.save({ session });
@@ -54,19 +63,16 @@ const addOrder = async (req, res, next) => {
     await session.commitTransaction();
     session.endSession();
 
-    return successRespons(res, {
+    return res.status(201).json({
       statusCode: 201,
       message: "Order successfully created",
       payload: { order: createdOrder },
     });
   } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
     console.error("Add Order Error:", error);
     next(error);
   }
 };
-
 
 // @desc   Get logged-in user's orders
 // @route  GET /api/orders/myorders
