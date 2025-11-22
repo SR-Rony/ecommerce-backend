@@ -1,10 +1,6 @@
 const createError = require("http-errors");
-const jwt = require("jsonwebtoken");
 const Users = require("../models/userModel");
-const { successRespons } = require("./respones.controller");
 const bcrypt = require("bcryptjs");
-const { createJsonWebToken } = require("../helper/jsonwebtoken");
-const { cfg } = require("../config/env");
 
 //============ user login ============
 const handleLogin = async (req, res, next) => {
