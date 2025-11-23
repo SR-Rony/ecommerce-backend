@@ -20,6 +20,9 @@ app.use(route);
 // http logger
 app.use(httpLogger());
 
+// OTP store initialize
+global.forgotPasswordStore = new Map();
+
 // Root route
 app.get("/", (req, res) => {
     res.status(200).send('Welcome to my server');

@@ -1,12 +1,9 @@
 const createError = require("http-errors");
 const User = require("../models/userModel");
-const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 
 const { successRespons } = require("./respones.controller");
 const { findWithIdService } = require("../services/findItem");
-const { createJsonWebToken } = require("../helper/jsonwebtoken");
-const emailNodmailer = require("../helper/email");
 const { 
   findUserService,
   forgetPasswordService,
@@ -14,7 +11,6 @@ const {
   UserActionService,
   updatePasswordService 
 } = require("../services/userServices");
-const { cfg } = require("../config/env");
 const otpStore = new Map();
 
 // ============== user register ============ //
@@ -209,35 +205,112 @@ const handleUpdatePassword = async (req, res, next) => {
 // ====== forgot password ======= //
 const handleForgotPassword = async (req, res, next) => {
   try {
-    const { email } = req.body;
-    if (!email) throw createError(400, "Email is required");
+    const { phone } = req.body;
+    
+    if (!phone) throw createError(400, "Phone number is required");
 
-    await forgetPasswordService(email);
+    // OTP generate
+    const otp = Math.floor(100000 + Math.random() * 900000);
+    
+    // Save in Map with 5 min expiry
+    global.forgotPasswordStore.set(phone, {
+      otp,
+      expires: Date.now() + 5 * 60 * 1000, // 5 min
+    });
+
+    console.log(`📲 OTP for ${phone}: ${otp}`); // simulate SMS
 
     return successRespons(res, {
       statusCode: 200,
-      message: `Please check your email (${email}) to reset your password.`,
+      message: `OTP sent to ${phone}`,
     });
   } catch (error) {
     next(error);
   }
 };
 
-// ====== reset password ======= //
+//===========================
+const handleVerifyForgotOtp = async (req, res, next) => {
+  try {
+    const { phone, otp } = req.body;
+    if (!phone || !otp) throw createError(400, "Phone and OTP are required");
+
+    const phoneKey = String(phone);
+    const stored = global.forgotPasswordStore.get(phoneKey);
+    if (!stored) throw createError(400, "OTP expired or not requested");
+
+    const { otp: storedOtp, expires } = stored;
+
+    if (Date.now() > expires) throw createError(400, "OTP expired");
+
+    if (Number(storedOtp) !== Number(otp)) throw createError(400, "Invalid OTP");
+
+    return successRespons(res, {
+      statusCode: 200,
+      message: "OTP verified successfully. You can now reset your password.",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+//=====================
+
+// PUT /user/reset-password
 const handleResetPassword = async (req, res, next) => {
   try {
-    const { token, newPassword } = req.body;
-    const userData = await resetPasswordService(token, newPassword);
+    const { phone, otp, newPassword } = req.body;
+
+    console.log(req.body);
+    
+
+    if (!phone || !otp || !newPassword) {
+      throw createError(400, "Phone, OTP and new password are required");
+    }
+
+    // 🔑 OTP fetch from global Map
+    const phoneKey = String(phone);
+    const stored = global.forgotPasswordStore.get(phoneKey);
+
+    if (!stored) {
+      throw createError(400, "OTP expired or not requested");
+    }
+
+    const { otp: storedOtp, expires } = stored;
+
+    // OTP expiry check
+    if (Date.now() > expires) {
+      global.forgotPasswordStore.delete(phoneKey); // remove expired OTP
+      throw createError(400, "OTP expired");
+    }
+
+    // OTP match check
+    if (Number(storedOtp) !== Number(otp)) {
+      throw createError(400, "Invalid OTP");
+    }
+
+    // ✅ Find user
+    const user = await User.findOne({ phone });
+    if (!user) throw createError(404, "User not found");
+
+    // ✅ Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedPassword;
+    await user.save();
+
+    // ✅ Delete OTP after successful reset
+    global.forgotPasswordStore.delete(phoneKey);
 
     return successRespons(res, {
       statusCode: 200,
       message: "Password reset successfully",
-      payload: { user: userData },
     });
+
   } catch (error) {
     next(error);
   }
 };
+
 
 // ====== delete user ======= //
 const handleDeleteUser = async (req, res, next) => {
@@ -270,6 +343,8 @@ module.exports = {
   handleManageUser,
   handleUpdatePassword,
   handleForgotPassword,
+  handleVerifyForgotOtp,
   handleResetPassword,
   handleDeleteUser,
+
 };

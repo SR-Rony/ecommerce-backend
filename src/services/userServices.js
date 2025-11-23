@@ -89,34 +89,32 @@ const updatePasswordService = async (updateId, email, oldPassword, newPassword, 
 };
 
 // ================== Forget Password (Send Email) ==================
-const forgetPasswordService = async (email) => {
-  try {
-    const userData = await Users.findOne({ email });
-    if (!userData) {
-      throw createError(404, "Email is incorrect or user not registered");
-    }
+const forgetPasswordService = async (phone) => {
+  const user = await Users.findOne({ phone });
 
-    // create reset token
-    const token = createJsonWebToken({ email }, cfg. JWT_RESET_PASSWORD_KEY, "10m");
-
-    // prepare email
-    const emailData = {
-      email,
-      subject: "Reset Password Email",
-      html: `
-        <h1>Hello ${userData.name}</h1>
-        <p>Please click the link below to reset your password:</p>
-        <a href="${cfg.CLIENT_URL}/user/reset-password/${token}" target="_blank">Reset Password</a>
-      `
-    };
-
-    // send email
-    await emailNodmailer(emailData);
-
-    return token;
-  } catch (error) {
-    throw error;
+  if (!user) {
+    throw createError(404, "User not found with this phone number");
   }
+
+  // 📌 6 digit OTP generate
+  const otp = Math.floor(100000 + Math.random() * 900000);
+
+  // 📌 OTP expire time (3 minutes)
+  const expires = Date.now() + 3 * 60 * 1000;
+
+  // Temporary store (Redis or DB or in-memory)
+  global.forgotPasswordStore = {
+    phone,
+    otp,
+    expires,
+  };
+
+  console.log("Reset OTP:", otp); // 🧪 testing time
+
+  // TODO: SMS Service (Twilio / Fast2SMS) diye OTP pathano
+  // sendSMS(phone, `Your password reset OTP is ${otp}`);
+
+  return true;
 };
 
 // ================== Reset Password ==================

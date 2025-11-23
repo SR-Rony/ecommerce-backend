@@ -9,7 +9,8 @@ const {
     handleGetSingleUser, 
     handleDeleteUser, 
     handleUpdateUser, 
-    handleForgotPassword 
+    handleForgotPassword, 
+    handleVerifyForgotOtp
 } = require("../../controller/user.controller")
 const runValidation = require("../../middlewares/validators")
 const { userRegistationValidate, updatePasswordValidate, userForgatePassword, userResetPassword } = require("../../middlewares/validators/auth")
@@ -41,6 +42,8 @@ route.put("/update-password/:id([0-9a-fA-F]{24})",updatePasswordValidate,handleU
 
 // user forget password set: localhost:400/api/v1/users/forget-password
 route.post("/forgot-password",handleForgotPassword)
+//===============
+route.post("/verify-forgot-otp",handleVerifyForgotOtp)
 // route.post("/forgot-password",isLoggedOut,userForgatePassword,runValidation, handleForgatePassword)
 
 // user reset password :localhost:400/api/v1/users/reset-password
