@@ -8,43 +8,27 @@ const userRegistationValidate = [
     .withMessage("name is require")
     .isLength({min:3, max:30})
     .withMessage("name shoud be at least 3-30 characters long"),
-    // email validation
-    body("email")
+    // phone validation
+    body("phone")
     .trim()
     .notEmpty()
-    .withMessage("email is require")
-    .isEmail()
-    .withMessage("Invalid Email"),
+    .withMessage("phone is require"),
     // password validation
     body("password")
     .trim()
     .notEmpty()
     .withMessage("password is require")
     .isLength({min:6})
-    .withMessage("password shoud be at least 6 characters long"),
-    // addres validation
-    body("address")
-    .trim()
-    .notEmpty()
-    .withMessage("address is require")
-    .isLength({min:3})
-    .withMessage("address shoud be at least 3 characters long"),
-    // phone validation
-    body("phone")
-    .trim()
-    .notEmpty()
-    .withMessage("phone is require")
+    .withMessage("password shoud be at least 6 characters long")
 
 ]
 
 const updatePasswordValidate =[
-    // email validation
-    body("email")
+    // phone validation
+    body("phone")
     .trim()
     .notEmpty()
-    .withMessage("email is require")
-    .isEmail()
-    .withMessage("Invalid Email"),
+    .withMessage("phone is require"),
     // old password validation
     body("oldPassword")
     .trim()
@@ -59,36 +43,32 @@ const updatePasswordValidate =[
     .withMessage("new password is require")
     .isLength({min:6})
     .withMessage("new password shoud be at least 6 characters long"),
-    // new password
-    body("confirmPassword")
-    .trim()
-    .notEmpty()
-    .withMessage("confirm password is require")
-    .isLength({min:6})
-    .withMessage("confirm password shoud be at least 6 characters long"),
 ]
 
 // validate user forgate password
 
 const userForgatePassword =[
-    // email validation
-    body("email")
+    // phone validation
+    body("phone")
     .trim()
     .notEmpty()
-    .withMessage("email is require")
-    .isEmail()
-    .withMessage("Invalid Email"),
+    .withMessage("phone is require"),
 ]
 
 // validate user reset password 
 const userResetPassword =[
-    // email validation
-    body("token")
+    // phone validation
+    body("phone")
     .trim()
     .notEmpty()
-    .withMessage("token is require"),
+    .withMessage("phone is require"),
+    // otp validation
+    body("otp")
+    .trim()
+    .notEmpty()
+    .withMessage("otp is require"),
     // password validation
-    body("newpassword")
+    body("password")
     .trim()
     .notEmpty()
     .withMessage("password is require")
@@ -96,19 +76,9 @@ const userResetPassword =[
     .withMessage("password shoud be at least 6 characters long"),
 ]
 
-// validate user reset password 
-const userRefreshToken =[
-    // email validation
-    body("token")
-    .trim()
-    .notEmpty()
-    .withMessage("token is require"),
-]
-
 module.exports ={
     userRegistationValidate,
     updatePasswordValidate,
     userForgatePassword,
     userResetPassword,
-    userRefreshToken
 }

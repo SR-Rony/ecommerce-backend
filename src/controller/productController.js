@@ -191,7 +191,6 @@ const handleBuyProduct = async (req, res, next) => {
       { $inc: { quantity: -quantity, sold: quantity } }, // decrease stock, increase sold
       { new: true }
     );
-    console.log(updatedProduct);
     
 
     if (!updatedProduct) {

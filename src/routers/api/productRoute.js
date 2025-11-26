@@ -23,25 +23,25 @@ productRoute.get("/", handleVewProduct);
 productRoute.get("/:slug", handleVewSingleProduct);
 
 // POST create new product
-productRoute.post( "/",attachUser,isAdmin, 
-  uploadProductImage.single("image"),
+productRoute.post( "/",attachUser,isAdmin,runValidation, 
+  uploadProductImage.single("image"),validateProduct,
   handleCreateProduct
 );
 
 // PUT update product by slug
 productRoute.put(
-  "/:slug",
+  "/:slug",attachUser,isAdmin,runValidation,
   handleUpdateProduct
 );
 
 // DELETE product by slug
-productRoute.delete("/:id", handleDeleteProduct);
+productRoute.delete("/:id",attachUser,isAdmin, handleDeleteProduct);
 
 // POST check stock for multiple products
-productRoute.post("/stock", handleGetStock);
+productRoute.post("/stock",attachUser,isAdmin, handleGetStock);
 
-// POST buy product (decrease stock & increase sold)
-productRoute.post("/buy", handleBuyProduct); 
-// 👆 protected: only logged-in users can buy
+// // POST buy product (decrease stock & increase sold)
+// productRoute.post("/buy", handleBuyProduct); 
+// // 👆 protected: only logged-in users can buy
 
 module.exports = productRoute;

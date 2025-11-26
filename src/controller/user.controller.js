@@ -6,8 +6,6 @@ const { successRespons } = require("./respones.controller");
 const { findWithIdService } = require("../services/findItem");
 const { 
   findUserService,
-  forgetPasswordService,
-  resetPasswordService,
   UserActionService,
   updatePasswordService 
 } = require("../services/userServices");

@@ -11,6 +11,6 @@ orderRouter.post("/",attachUser, addOrder);
 orderRouter.get("/",attachUser,isAdmin, getMyOrders);
 
 // Get order by ID
-orderRouter.get("/:id", getOrderById);
+orderRouter.get("/:id",attachUser, getOrderById);
 
 module.exports = orderRouter;
