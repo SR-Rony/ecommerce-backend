@@ -9,6 +9,40 @@ const deleteImg = require("../helper/deleteImages");
 const { cloudinaryHelper, deleteCloudinaryImage } = require("../helper/cloudinaryHelper");
 const cloudinary = require("../config/cloudinary");
 
+
+
+/**
+ * @desc handle search products
+ */
+const handleSearchProduct = async (req, res) => {
+  try {
+    let { query } = req.query;
+    query = query?.trim();
+
+    if (!query) {
+      return res.json({ products: [] });
+    }
+
+    const regex = new RegExp(query, "i"); // Case insensitive
+
+    const products = await Product.find({
+      $or: [
+        { name: regex },
+        { description: regex },
+        { slug: { $regex: slugify(query, { lower: true }) } },
+      ],
+    })
+      .select("name price slug image quantity") // Extra: show stock for UI badge
+      .sort({ sold: -1 }) // Popular items first
+      .limit(30);
+
+    return res.json({ products });
+
+  } catch (err) {
+    console.error("Search Error:", err.message);
+    return res.status(500).json({ message: "Something went wrong!" });
+  }
+};
 /**
  * @desc GET all products
  */
@@ -31,7 +65,6 @@ const handleVewProduct = async (req, res, next) => {
     next(error);
   }
 };
-
 /**
  * @desc GET single product by slug
  */
@@ -53,7 +86,6 @@ const handleVewSingleProduct = async (req, res, next) => {
     next(error);
   }
 };
-
 /**
  * @desc CREATE product
  */
@@ -96,7 +128,6 @@ const handleCreateProduct = async (req, res, next) => {
     next(error);
   }
 };
-
 /**
  * @desc UPDATE product
  */
@@ -118,7 +149,6 @@ const handleUpdateProduct = async (req, res, next) => {
     next(error);
   }
 };
-
 /**
  * @desc DELETE product
  */
@@ -147,8 +177,6 @@ const handleDeleteProduct = async (req, res, next) => {
     next(error);
   }
 };
-
-
 /**
  * @desc Get stock for multiple products
  */
@@ -209,6 +237,7 @@ const handleBuyProduct = async (req, res, next) => {
 };
 
 module.exports = {
+  handleSearchProduct,
   handleVewProduct,
   handleVewSingleProduct,
   handleCreateProduct,

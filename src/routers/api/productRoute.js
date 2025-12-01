@@ -6,7 +6,8 @@ const {
   handleDeleteProduct,
   handleUpdateProduct,
   handleGetStock,
-  handleBuyProduct, // <-- import buy handler
+  handleBuyProduct,
+  handleSearchProduct, // <-- import buy handler
 } = require('../../controller/productController');
 const { isAdmin } = require('../../middlewares/auth');
 const { validateProduct } = require('../../middlewares/validators/product');
@@ -15,6 +16,11 @@ const { uploadProductImage } = require('../../middlewares/uplodFile');
 const attachUser = require('../../middlewares/validators/attachUser');
 
 const productRoute = express.Router();
+
+// ================== Product Routes ==================
+
+// Search products by name or description
+productRoute.get("/search", handleSearchProduct);
 
 // GET all products
 productRoute.get("/", handleVewProduct);
@@ -40,8 +46,8 @@ productRoute.delete("/:id",attachUser,isAdmin, handleDeleteProduct);
 // POST check stock for multiple products
 productRoute.post("/stock",attachUser,isAdmin, handleGetStock);
 
-// // POST buy product (decrease stock & increase sold)
-// productRoute.post("/buy", handleBuyProduct); 
-// // 👆 protected: only logged-in users can buy
+// POST buy product (decrease stock & increase sold)
+productRoute.post("/buy", handleBuyProduct); 
+// 👆 protected: only logged-in users can buy
 
 module.exports = productRoute;
