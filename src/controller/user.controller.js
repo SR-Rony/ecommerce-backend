@@ -133,6 +133,7 @@ const handleGetSingleUser = async (req, res, next) => {
 const handleUpdateUser = async (req, res, next) => {
   try {
     const updateId = req.params.id;
+    
     const user = await findWithIdService(User, updateId, { password: 0 });
     if (!user) throw createError(404, "User not found");
 

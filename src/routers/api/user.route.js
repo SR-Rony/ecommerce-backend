@@ -35,7 +35,7 @@ route.get("/:id([0-9a-fA-F]{24})",attachUser,isAdmin,runValidation,handleGetSing
 route.delete("/:id([0-9a-fA-F]{24})",attachUser,isAdmin,handleDeleteUser)
 
 // update user:  localhost:4000/api/user/update/:id
-route.put("/update/:id([0-9a-fA-F]{24})",attachUser,isAdmin,handleUpdateUser)
+route.put("/update/:id([0-9a-fA-F]{24})",attachUser,handleUpdateUser)
 
 // user new password set: localhost:4000/api/user/update-password/:id
 route.put("/update-password/:id([0-9a-fA-F]{24})",updatePasswordValidate,runValidation,handleUpdatePassword)
