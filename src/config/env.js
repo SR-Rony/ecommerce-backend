@@ -4,7 +4,7 @@ require("dotenv").config();
 const envSchema = z.object({
   NODE_ENV: z.enum(['development','production','test']).default('development'),
   SERVER_PORT: z.coerce.number().positive().default(4000),
-  CLIENT_URLS: z.string().min(1),
+  CLIENT_URL: z.string().url(), // single URL
 }).passthrough();
 
 let cfg;
@@ -19,8 +19,9 @@ function validateEnv() {
 
   cfg = parsed.data;
 
-  // Split comma separated URLs
-  cfg.corsOrigins = cfg.CLIENT_URLS.split(',').map(url => url.trim());
+  // Convert single URL to array for CORS
+  cfg.corsOrigins = [cfg.CLIENT_URL];
+
   return cfg;
 }
 

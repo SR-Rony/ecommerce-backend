@@ -1,3 +1,4 @@
+const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
 const compression = require('compression');
@@ -15,13 +16,14 @@ function applySecurity(app) {
   app.use(express.urlencoded({ extended: true, limit: '200kb' }));
   app.use(cookieParser());
 
+  // ---------- CORS ----------
   const allowlist = new Set(cfg.corsOrigins);
   console.log("CORS Allowlist:", allowlist);
 
   app.use(
     cors({
       origin(origin, callback) {
-        if (!origin) return callback(null, true);
+        if (!origin) return callback(null, true); // server-to-server
         if (allowlist.has(origin)) return callback(null, true);
         console.log("❌ Blocked by CORS:", origin);
         return callback(new Error("Not allowed by CORS"));
@@ -32,12 +34,13 @@ function applySecurity(app) {
     })
   );
 
+  // ---------- Security Headers ----------
   app.use(helmet());
   app.use(mongoSanitize());
   app.use(hpp());
   app.use(compression());
 
-  // Rate limiting
+  // ---------- Rate Limiting ----------
   app.use(rateLimit({
     windowMs: 15*60*1000,
     max: 300,
@@ -45,7 +48,6 @@ function applySecurity(app) {
     legacyHeaders: false
   }));
 
-  // Stricter limit for auth endpoints
   app.use('/api/auth/login', rateLimit({
     windowMs: 5*60*1000,
     max: 20
