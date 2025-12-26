@@ -45,6 +45,7 @@ const handleGetSingleCategory = async (req,res,next)=>{
 const handleCreateCategory = async (req, res, next) => {
   try {
     const { name } = req.body;
+    
 
     if (!name || name.trim().length < 3) {
       return res.status(400).json({
