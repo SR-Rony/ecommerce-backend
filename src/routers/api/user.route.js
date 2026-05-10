@@ -1,55 +1,79 @@
-const route = require("express").Router()
-const { 
-    handleManageUser,
-    handleUpdatePassword,
-    handleResetPassword,
-    handleRegister,
-    handleUserVerify, 
-    handleGetUsers, 
-    handleGetSingleUser, 
-    handleDeleteUser, 
-    handleUpdateUser, 
-    handleForgotPassword, 
-    handleVerifyForgotOtp
-} = require("../../controller/user.controller")
-const runValidation = require("../../middlewares/validators")
-const { userRegistationValidate, updatePasswordValidate, userForgatePassword, userResetPassword } = require("../../middlewares/validators/auth")
-const { isAdmin} = require("../../middlewares/auth")
-const { uploadUserImage } = require("../../middlewares/uplodFile")
-const attachUser = require("../../middlewares/validators/attachUser")
+const route = require("express").Router();
+const {
+  handleManageUser,
+  handleUpdatePassword,
+  handleResetPassword,
+  handleRegister,
+  handleUserVerify,
+  handleGetUsers,
+  handleGetSingleUser,
+  handleDeleteUser,
+  handleUpdateUser,
+  handleForgotPassword,
+  handleVerifyForgotOtp,
+} = require("../../controller/user.controller");
+const runValidation = require("../../middlewares/validators");
+const {
+  userRegistationValidate,
+  updatePasswordValidate,
+  userForgatePassword,
+  userResetPassword,
+  userVerifyOtpValidate,
+  verifyForgotOtpValidate,
+  manageUserValidate,
+} = require("../../middlewares/validators/auth");
+const { isAdmin, requireAuth } = require("../../middlewares/auth");
+const attachUser = require("../../middlewares/validators/attachUser");
 
-// user register route: localhost:4000/api/user/register
-route.post("/register",userRegistationValidate,runValidation,handleRegister)
+route.post("/register", userRegistationValidate, runValidation, handleRegister);
 
-// user verify route: localhost:4000/api/user/verify
-route.post("/verify",handleUserVerify)
+route.post("/verify", userVerifyOtpValidate, runValidation, handleUserVerify);
 
-// all get user: localhost:4000/api/user
-route.get("/",attachUser,isAdmin,runValidation,handleGetUsers)
-// route.get("/",handleGetUsers)
+route.get("/", attachUser, isAdmin, handleGetUsers);
 
-// single get user: localhost:4000/api/user/:id
-route.get("/:id([0-9a-fA-F]{24})",attachUser,isAdmin,runValidation,handleGetSingleUser)
+route.get(
+  "/:id([0-9a-fA-F]{24})",
+  attachUser,
+  isAdmin,
+  handleGetSingleUser
+);
 
-// delete user: localhost:4000/api/user/:id
-route.delete("/:id([0-9a-fA-F]{24})",attachUser,isAdmin,handleDeleteUser)
+route.delete(
+  "/:id([0-9a-fA-F]{24})",
+  attachUser,
+  isAdmin,
+  handleDeleteUser
+);
 
-// update user:  localhost:4000/api/user/update/:id
-route.put("/update/:id([0-9a-fA-F]{24})",attachUser,handleUpdateUser)
+route.put("/update/:id([0-9a-fA-F]{24})", attachUser, requireAuth, handleUpdateUser);
 
-// user new password set: localhost:4000/api/user/update-password/:id
-route.put("/update-password/:id([0-9a-fA-F]{24})",updatePasswordValidate,runValidation,handleUpdatePassword)
+route.put(
+  "/update-password/:id([0-9a-fA-F]{24})",
+  attachUser,
+  requireAuth,
+  updatePasswordValidate,
+  runValidation,
+  handleUpdatePassword
+);
 
-// user forget password set: localhost:400/api/v1/users/forget-password
-route.post("/forgot-password",userForgatePassword,runValidation,handleForgotPassword)
+route.post("/forgot-password", userForgatePassword, runValidation, handleForgotPassword);
 
-//user verify forgot otp : localhost:4000/api/user/verify-forgot-otp
-route.post("/verify-forgot-otp",runValidation,handleVerifyForgotOtp)
+route.post(
+  "/verify-forgot-otp",
+  verifyForgotOtpValidate,
+  runValidation,
+  handleVerifyForgotOtp
+);
 
-// user reset password :localhost:4000/api/user/reset-password
-route.put("/reset-password",runValidation,handleResetPassword)
+route.put("/reset-password", userResetPassword, runValidation, handleResetPassword);
 
-// handle manage user: localhost:4000/api/user/manage-user
-route.put("/manage-user/:id([0-9a-fA-F]{24})",attachUser,isAdmin,runValidation,handleManageUser)
+route.put(
+  "/manage-user/:id([0-9a-fA-F]{24})",
+  attachUser,
+  isAdmin,
+  manageUserValidate,
+  runValidation,
+  handleManageUser
+);
 
-module.exports = route
+module.exports = route;

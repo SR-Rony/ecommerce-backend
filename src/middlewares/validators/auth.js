@@ -1,84 +1,107 @@
-const {body} = require("express-validator")
+const { body } = require("express-validator");
 
-//user registation validation
 const userRegistationValidate = [
-    body("name")
+  body("name")
     .trim()
     .notEmpty()
-    .withMessage("name is require")
-    .isLength({min:3, max:30})
-    .withMessage("name shoud be at least 3-30 characters long"),
-    // phone validation
-    body("phone")
+    .withMessage("Name is required")
+    .isLength({ min: 3, max: 80 })
+    .withMessage("Name must be between 3 and 80 characters"),
+  body("phone")
     .trim()
     .notEmpty()
-    .withMessage("phone is require"),
-    // password validation
-    body("password")
-    .trim()
+    .withMessage("Phone is required"),
+  body("password")
     .notEmpty()
-    .withMessage("password is require")
-    .isLength({min:6})
-    .withMessage("password shoud be at least 6 characters long")
+    .withMessage("Password is required")
+    .isLength({ min: 6 })
+    .withMessage("Password must be at least 6 characters long"),
+];
 
-]
+const updatePasswordValidate = [
+  body("phone")
+    .trim()
+    .notEmpty()
+    .withMessage("Phone is required"),
+  body("oldPassword")
+    .notEmpty()
+    .withMessage("Old password is required")
+    .isLength({ min: 6 })
+    .withMessage("Old password must be at least 6 characters"),
+  body("newPassword")
+    .notEmpty()
+    .withMessage("New password is required")
+    .isLength({ min: 6 })
+    .withMessage("New password must be at least 6 characters"),
+  body("confirmPassword")
+    .notEmpty()
+    .withMessage("Confirm password is required")
+    .custom((value, { req }) => value === req.body.newPassword)
+    .withMessage("Confirm password must match new password"),
+];
 
-const updatePasswordValidate =[
-    // phone validation
-    body("phone")
+const userForgatePassword = [
+  body("phone")
     .trim()
     .notEmpty()
-    .withMessage("phone is require"),
-    // old password validation
-    body("oldPassword")
-    .trim()
-    .notEmpty()
-    .withMessage("old password is require")
-    .isLength({min:6})
-    .withMessage("old password shoud be at least 6 characters long"),
-    // new password
-    body("newPassword")
-    .trim()
-    .notEmpty()
-    .withMessage("new password is require")
-    .isLength({min:6})
-    .withMessage("new password shoud be at least 6 characters long"),
-]
+    .withMessage("Phone is required"),
+];
 
-// validate user forgate password
+const userVerifyOtpValidate = [
+  body("phone")
+    .trim()
+    .notEmpty()
+    .withMessage("Phone is required"),
+  body("otp")
+    .trim()
+    .notEmpty()
+    .withMessage("OTP is required")
+    .isLength({ min: 4, max: 10 })
+    .withMessage("Invalid OTP"),
+];
 
-const userForgatePassword =[
-    // phone validation
-    body("phone")
+const verifyForgotOtpValidate = [
+  body("phone")
     .trim()
     .notEmpty()
-    .withMessage("phone is require"),
-]
+    .withMessage("Phone is required"),
+  body("otp")
+    .trim()
+    .notEmpty()
+    .withMessage("OTP is required"),
+];
 
-// validate user reset password 
-const userResetPassword =[
-    // phone validation
-    body("phone")
+const userResetPassword = [
+  body("phone")
     .trim()
     .notEmpty()
-    .withMessage("phone is require"),
-    // otp validation
-    body("otp")
+    .withMessage("Phone is required"),
+  body("otp")
     .trim()
     .notEmpty()
-    .withMessage("otp is require"),
-    // password validation
-    body("password")
-    .trim()
+    .withMessage("OTP is required"),
+  body("newPassword")
     .notEmpty()
-    .withMessage("password is require")
-    .isLength({min:6})
-    .withMessage("password shoud be at least 6 characters long"),
-]
+    .withMessage("New password is required")
+    .isLength({ min: 6 })
+    .withMessage("New password must be at least 6 characters"),
+];
 
-module.exports ={
-    userRegistationValidate,
-    updatePasswordValidate,
-    userForgatePassword,
-    userResetPassword,
-}
+const manageUserValidate = [
+  body("action")
+    .trim()
+    .notEmpty()
+    .withMessage("action is required")
+    .isIn(["ban", "unban"])
+    .withMessage("action must be ban or unban"),
+];
+
+module.exports = {
+  userRegistationValidate,
+  updatePasswordValidate,
+  userForgatePassword,
+  userResetPassword,
+  userVerifyOtpValidate,
+  verifyForgotOtpValidate,
+  manageUserValidate,
+};

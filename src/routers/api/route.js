@@ -21,8 +21,7 @@ route.use("/product",productRoute) //localhost:4000/api/product
 //order router
 route.use("/orders",orderRouter) //localhost:4000/api/orders
 
-// coupon route
-route.use("/coupons",couponRouter) //localhost:4000/api/orders
+route.use("/coupons",couponRouter)
 
 
 module.exports = route

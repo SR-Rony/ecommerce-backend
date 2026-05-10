@@ -1,12 +1,69 @@
-const createError = require("http-errors")
-const  slugify = require("slugify")
-const Product = require("../models/productModel")
-const deleteImg = require("../helper/deleteImages")
-const cloudinary = require("../config/cloudinary")
-const { cloudinaryHelper, deleteCloudinaryImage } = require("../helper/cloudinaryHelper")
+const createError = require("http-errors");
+const mongoose = require("mongoose");
+const slugify = require("slugify");
+const Product = require("../models/productModel");
 
-// create category service
+const slugOpts = { lower: true, strict: true, trim: true };
 
+const ALLOWED_UPDATE_KEYS = [
+  "name",
+  "description",
+  "price",
+  "quantity",
+  "shipping",
+  "categoryId",
+];
+
+const parseShippingUpdate = (val) => {
+  if (val === undefined || val === null || val === "") return undefined;
+  if (typeof val === "boolean") return val ? 1 : 0;
+  const n = parseFloat(val);
+  if (!Number.isFinite(n) || n < 0) {
+    throw createError(422, "Invalid shipping value");
+  }
+  return n;
+};
+
+const coerceUpdateValue = (key, raw) => {
+  switch (key) {
+    case "price": {
+      const n = typeof raw === "string" ? parseFloat(raw) : Number(raw);
+      if (!Number.isFinite(n) || n <= 0) {
+        throw createError(422, "Price must be greater than zero");
+      }
+      return n;
+    }
+    case "quantity": {
+      const n = typeof raw === "string" ? parseFloat(raw) : Number(raw);
+      if (!Number.isFinite(n) || n < 0) {
+        throw createError(422, "Quantity must be zero or greater");
+      }
+      return n;
+    }
+    case "shipping":
+      return parseShippingUpdate(raw);
+    case "categoryId": {
+      if (!mongoose.Types.ObjectId.isValid(raw)) {
+        throw createError(422, "Invalid category id");
+      }
+      return raw;
+    }
+    case "description": {
+      const s = String(raw).trim();
+      if (!s.length) throw createError(422, "Description cannot be empty");
+      return s;
+    }
+    case "name": {
+      const s = String(raw).trim();
+      if (s.length < 3) {
+        throw createError(422, "Product name must be at least 3 characters");
+      }
+      return s;
+    }
+    default:
+      return raw;
+  }
+};
 
 const createProductServices = async (
   name,
@@ -15,158 +72,51 @@ const createProductServices = async (
   quantity,
   shipping,
   categoryId,
-  image // assume this is already an image URL or handled elsewhere
+  image
 ) => {
-    
-    // Check if product with the same name already exists to avoid duplicates
-    // const productExists = await Product.exists({ name: name });
-    // if (productExists) {
-    //     throw createError(409, "Product name already exists");
-    // }
-    
-    console.log("message", name, description, price, quantity, shipping, categoryId, image);
-  let imageUrl = image;
-
-  // Skip uploading to Cloudinary; just save the image as provided
-
-  console.log("ami3");
-
-  // Create the new product document in MongoDB
-  const newProduct = await Product.create({
-    name: name,
-    slug: slugify(name),
-    description: description,
-    price: price,
-    quantity: quantity,
-    shipping: shipping,
-    image: imageUrl,
-    categoryId: categoryId,
+  return Product.create({
+    name,
+    slug: slugify(name, slugOpts),
+    description,
+    price,
+    quantity,
+    shipping,
+    image,
+    categoryId,
   });
-
-  console.log("ami4");
-
-  return newProduct;
 };
 
+const updateProductServices = async (req, slug) => {
+  const product = await Product.findOne({ slug });
+  if (!product) {
+    throw createError(404, "Product does not exist");
+  }
 
+  const updates = {};
 
+  for (const key of ALLOWED_UPDATE_KEYS) {
+    if (!(key in req.body) || req.body[key] === undefined) continue;
 
+    updates[key] = coerceUpdateValue(key, req.body[key]);
+  }
 
+  if (updates.name) {
+    updates.slug = slugify(updates.name, slugOpts);
+  }
 
+  const productUpdate = await Product.findOneAndUpdate({ slug }, updates, {
+    new: true,
+    runValidators: true,
+  }).populate("categoryId");
 
+  if (!productUpdate) {
+    throw createError(404, "Product does not exist");
+  }
 
-
-
-
-// const createProductServices = async (
-//   name,
-//   description,
-//   price,
-//   quantity,
-//   shipping,
-//   categoryId,
-//   image // expected to be a local file path or base64 data?
-// ) => {
-//     console.log("ami2");
-    
-//   // Check if product with the same name already exists to avoid duplicates
-//   const productExists = await Product.exists({ name: name });
-//   if (productExists) {
-//     throw createError(409, "Product name already exists");
-//   }
-
-//   let imageUrl = image;
-//   log("Image URL before upload:", imageUrl);
-//   // If there is an image file (probably a local file path or base64 string),
-//   // upload it to Cloudinary and get the secure URL
-//   if (image) {
-//     const response = await cloudinary.uploader.upload(image, {
-//       folder: "mernEcommerce/product",
-//     });
-//     imageUrl = response.secure_url; // get the URL from Cloudinary response
-//   }
-// console.log('ami3');
-
-//   // Create the new product document in MongoDB
-//   const newProduct = await Product.create({
-//     name: name,
-//     slug: slugify(name), // generate a URL-friendly slug from product name
-//     description: description,
-//     price: price,
-//     quantity: quantity,
-//     shipping: shipping, // expected boolean or number (1/0)
-//     image: imageUrl,
-//     categoryId: categoryId,
-//   });
-
-//   console.log('ami4');
-  
-
-//   return newProduct;
-// };
-
-
-// create category service
-const updateProductServices = async (req,slug)=>{
-    try {
-    let updateOptions = {new:true}
-    const product = await Product.findOne({slug:slug})
-    
-    let updates ={} //update object
-    
-    // input req.body all key
-    for(let key in req.body){
-        if(["name","price","quantity"].includes(key)){
-            updates[key]= req.body[key]
-        }
-    }
-
-    if(updates.name){
-        updates.slug = slugify(updates.name)
-    }
-
-    // const updateImage = req.file?.path;// images path
-    // if(updateImage){
-    //     if(updateImage.size > 1024 * 1024 * 2){
-    //         throw createError(409,"file to large. It must be less than  2MB")
-    //     }
-    //         const respons = await cloudinary.uploader.upload(updateImage,{
-    //             folder:"mernEcommerce/product"
-    //         })
-    //         updates.image = respons.secure_url
-        
-    //     // updates.image=updateImage //images update
-    // }
-    // user update
-    const productUpdate = await Product.findOneAndUpdate({slug},updates,updateOptions)
-
-    console.log(productUpdate);
-    
-    
-
-    if(!productUpdate){
-        throw createError(404,"Product not exsist")
-    }
-
-    // if(product && product.image){
-
-    //     const cloudImageId = await cloudinaryHelper(product.image);
-    //     // cloudinary image delete helper
-    //     await deleteCloudinaryImage("mernEcommerce/product",cloudImageId,"Product")
-    // }
-    // product.image!=="default.png" && deleteImg(product.image) //images delete
-
-
-
-    return productUpdate
-        
-    } catch (error) {
-        throw error
-    }
-}
-
+  return productUpdate;
+};
 
 module.exports = {
-    createProductServices,
-    updateProductServices
-}
+  createProductServices,
+  updateProductServices,
+};

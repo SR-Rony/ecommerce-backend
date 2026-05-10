@@ -1,87 +1,89 @@
 const createError = require("http-errors");
+const mongoose = require("mongoose");
 const Users = require("../models/userModel");
 const bcrypt = require("bcryptjs");
-const { findWithIdService } = require("./findItem");
 
+const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-// ================== Find Users (Search Service) ==================
 const findUserService = async (search) => {
   const query = {};
 
-  if (search) {
+  const term = typeof search === "string" ? search.trim() : "";
+  if (term.length > 0) {
+    const safe = escapeRegex(term);
     query.$or = [
-      { name: { $regex: search, $options: "i" } }, // Search by name
-      { email: { $regex: search, $options: "i" } } // Search by email
+      { name: { $regex: safe, $options: "i" } },
+      { phone: { $regex: safe, $options: "i" } },
     ];
   }
 
-  const users = await Users.find(query).sort({ createdAt: -1 });
+  const users = await Users.find(query)
+    .select("-password")
+    .sort({ createdAt: -1 })
+    .lean();
+
   return users;
 };
 
-// ================== Ban / Unban User ==================
 const UserActionService = async (userId, action) => {
-  try {
-    let successMessage;
-    let update;
+  let successMessage;
+  let update;
 
-    if (action === "ban") {
-      update = { isBanned: true };
-      successMessage = "User banned successfully";
-    } else if (action === "unban") {
-      update = { isBanned: false };
-      successMessage = "User unbanned successfully";
-    } else {
-      throw createError(400, "Invalid action");
-    }
-
-    const updateOptions = { new: true, runValidators: true, context: "query" };
-    const userUpdate = await Users.findByIdAndUpdate(userId, update, updateOptions).select("-password");
-
-    if (!userUpdate) {
-      throw createError(404, "User not found or update failed");
-    }
-
-    return successMessage;
-  } catch (error) {
-    throw error;
+  if (action === "ban") {
+    update = { isBanned: true };
+    successMessage = "User banned successfully";
+  } else if (action === "unban") {
+    update = { isBanned: false };
+    successMessage = "User unbanned successfully";
+  } else {
+    throw createError(400, "Invalid action. Use ban or unban.");
   }
+
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    throw createError(404, "User not found");
+  }
+
+  const userUpdate = await Users.findByIdAndUpdate(userId, update, {
+    new: true,
+    runValidators: true,
+  }).select("-password");
+
+  if (!userUpdate) {
+    throw createError(404, "User not found");
+  }
+
+  return successMessage;
 };
 
-// ================== Update Password ==================
-const updatePasswordService = async (updateId, email, oldPassword, newPassword, confirmPassword) => {
-  try {
-    const user = await findWithIdService(Users, updateId);
-    if (!user) throw createError(404, "User not found");
+const updatePasswordService = async (
+  updateId,
+  phone,
+  oldPassword,
+  newPassword,
+  confirmPassword
+) => {
+  const user = await Users.findById(updateId).select("+password");
+  if (!user) throw createError(404, "User not found");
 
-    if (user.email !== email) {
-      throw createError(400, "Invalid Email");
-    }
-
-    if (newPassword !== confirmPassword) {
-      throw createError(400, "New password and confirm password do not match");
-    }
-
-    const passwordCheck = await bcrypt.compare(oldPassword, user.password);
-    if (!passwordCheck) {
-      throw createError(401, "Old password is incorrect");
-    }
-
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-    const update = { $set: { password: hashedPassword } };
-    const updateOptions = { new: true };
-
-    const updateUser = await Users.findByIdAndUpdate(updateId, update, updateOptions).select("-password");
-
-    if (!updateUser) {
-      throw createError(400, "Password update failed");
-    }
-
-    return updateUser;
-  } catch (error) {
-    throw error;
+  if (String(user.phone) !== String(phone).trim()) {
+    throw createError(400, "Phone does not match this account");
   }
+
+  if (!newPassword || newPassword !== confirmPassword) {
+    throw createError(400, "New password and confirm password do not match");
+  }
+
+  const passwordCheck = await bcrypt.compare(oldPassword, user.password);
+  if (!passwordCheck) {
+    throw createError(401, "Old password is incorrect");
+  }
+
+  user.password = newPassword;
+  await user.save();
+
+  const safe = await Users.findById(updateId).select("-password").lean();
+
+  return safe;
 };
 
 module.exports = {

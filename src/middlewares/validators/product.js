@@ -1,41 +1,49 @@
-const {body} = require("express-validator")
+const { body } = require("express-validator");
 
-// category validator
 const validateProduct = [
-    body("name")
+  body("name")
     .trim()
     .notEmpty()
-    .withMessage("product name is required")
-    .isLength({min:3})
-    .withMessage("product name should be at least 3 chracter long"),
+    .withMessage("Product name is required")
+    .isLength({ min: 3 })
+    .withMessage("Product name must be at least 3 characters"),
 
-    body("description")
+  body("description")
     .trim()
     .notEmpty()
-    .withMessage("product description is required")
-    .isLength({min:3,max:150})
-    .withMessage("product name should be at least 3 and 150 chracter"),
+    .withMessage("Product description is required")
+    .isLength({ min: 3, max: 5000 })
+    .withMessage("Product description must be between 3 and 5000 characters"),
 
-    body("price")
-    .trim()
+  body("price")
     .notEmpty()
-    .withMessage("product price is required")
-    .isFloat({min:0})
-    .withMessage('price must be a positive number'),
+    .withMessage("Product price is required")
+    .isFloat({ gt: 0 })
+    .withMessage("Price must be greater than zero"),
 
-    body("quantity")
-    .trim()
+  body("quantity")
     .notEmpty()
-    .withMessage("product quantity is required")
-    .isFloat({min:1})
-    .withMessage('product quantity must be a positive number'),
+    .withMessage("Product quantity is required")
+    .isFloat({ min: 0 })
+    .withMessage("Quantity must be zero or greater"),
 
-    body("categoryId")
+  body("categoryId")
     .trim()
     .notEmpty()
     .withMessage("categoryId is required")
-]
+    .isMongoId()
+    .withMessage("categoryId must be a valid MongoDB id"),
+
+  body("shipping")
+    .optional({ checkFalsy: true })
+    .custom((value) => {
+      if (value === undefined || value === null || value === "") return true;
+      const n = typeof value === "string" ? parseFloat(value) : Number(value);
+      return Number.isFinite(n) && n >= 0;
+    })
+    .withMessage("Shipping must be a non-negative number"),
+];
 
 module.exports = {
-    validateProduct
-}
+  validateProduct,
+};

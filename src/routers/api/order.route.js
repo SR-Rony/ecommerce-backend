@@ -1,16 +1,28 @@
 const express = require("express");
 const orderRouter = express.Router();
-const { addOrder, getMyOrders, getOrderById } = require("../../controller/orderController");
-const { isAdmin } = require("../../middlewares/auth");
+const {
+  addOrder,
+  getUserOrders,
+  getAdminOrders,
+  getOrderById,
+} = require("../../controller/orderController");
+const { isAdmin, requireAuth } = require("../../middlewares/auth");
 const attachUser = require("../../middlewares/validators/attachUser");
 
-// Create new order
-orderRouter.post("/",attachUser, addOrder);
+orderRouter.post("/", attachUser, requireAuth, addOrder);
 
-// Get logged-in user's orders
-orderRouter.get("/",attachUser,isAdmin, getMyOrders);
+orderRouter.get("/mine", attachUser, requireAuth, getUserOrders);
 
-// Get order by ID
-orderRouter.get("/:id",attachUser, getOrderById);
+orderRouter.get("/admin/all", attachUser, isAdmin, getAdminOrders);
+
+/** Backward-compatible: admins used GET /api/orders for all orders */
+orderRouter.get("/", attachUser, isAdmin, getAdminOrders);
+
+orderRouter.get(
+  "/:id([0-9a-fA-F]{24})",
+  attachUser,
+  requireAuth,
+  getOrderById
+);
 
 module.exports = orderRouter;

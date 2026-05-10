@@ -49,10 +49,7 @@ const productSchema = new Schema(
     shipping: {
       type: Number,
       default: 0,
-      validate: {
-        validator: (v) => v >= 0,
-        message: (props) => `${props.value} is not a valid shipping cost!`,
-      },
+      min: [0, "Shipping cost cannot be negative"],
     },
     image: {
       type: String,

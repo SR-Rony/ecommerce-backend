@@ -1,15 +1,16 @@
 const createError = require("http-errors");
+const mongoose = require("mongoose");
 const streamifier = require("streamifier");
-const path = require("path");
 const slugify = require("slugify");
 const Product = require("../models/productModel");
 const { successRespons } = require("./respones.controller");
 const { updateProductServices } = require("../services/productServices");
-const deleteImg = require("../helper/deleteImages");
-const { cloudinaryHelper, deleteCloudinaryImage } = require("../helper/cloudinaryHelper");
+const { deleteCloudinaryImage } = require("../helper/cloudinaryHelper");
 const cloudinary = require("../config/cloudinary");
 
+const slugOpts = { lower: true, strict: true, trim: true };
 
+const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /**
  * @desc handle search products
@@ -23,26 +24,27 @@ const handleSearchProduct = async (req, res) => {
       return res.json({ products: [] });
     }
 
-    const regex = new RegExp(query, "i"); // Case insensitive
+    const safe = escapeRegex(query);
+    const regex = new RegExp(safe, "i");
+    const slugPart = slugify(query, slugOpts);
 
     const products = await Product.find({
       $or: [
         { name: regex },
         { description: regex },
-        { slug: { $regex: slugify(query, { lower: true }) } },
+        ...(slugPart ? [{ slug: new RegExp(escapeRegex(slugPart), "i") }] : []),
       ],
     })
-      .select("name price slug image quantity") // Extra: show stock for UI badge
-      .sort({ sold: -1 }) // Popular items first
+      .select("name price slug image quantity")
+      .sort({ sold: -1 })
       .limit(30);
 
     return res.json({ products });
-
   } catch (err) {
-    console.error("Search Error:", err.message);
     return res.status(500).json({ message: "Something went wrong!" });
   }
 };
+
 /**
  * @desc GET all products
  */
@@ -52,19 +54,18 @@ const handleVewProduct = async (req, res, next) => {
       .populate("categoryId")
       .sort({ createdAt: -1 });
 
-    if (!allProducts) {
-      return res.status(404).json({ message: "No products found" });
-    }
-
     return successRespons(res, {
       statusCode: 200,
-      message: "All products fetched successfully",
+      message: allProducts.length
+        ? "All products fetched successfully"
+        : "No products in catalog",
       payload: { products: allProducts },
     });
   } catch (error) {
     next(error);
   }
 };
+
 /**
  * @desc GET single product by slug
  */
@@ -86,12 +87,23 @@ const handleVewSingleProduct = async (req, res, next) => {
     next(error);
   }
 };
+
+const parseShippingNumber = (raw) => {
+  if (raw === undefined || raw === null || raw === "") return 0;
+  if (typeof raw === "boolean") return raw ? 1 : 0;
+  const n = parseFloat(raw);
+  return Number.isFinite(n) ? Math.max(0, n) : 0;
+};
+
 /**
  * @desc CREATE product
  */
 const handleCreateProduct = async (req, res, next) => {
   try {
-    const { name, description, price, quantity, shipping, categoryId } = req.body;
+    const { name, description, categoryId } = req.body;
+    const price = parseFloat(req.body.price);
+    const quantity = parseFloat(req.body.quantity);
+    const shipping = parseShippingNumber(req.body.shipping);
     const file = req.file;
 
     if (!file) throw createError(400, "Image file is required");
@@ -101,44 +113,43 @@ const handleCreateProduct = async (req, res, next) => {
       async (error, result) => {
         if (error) return next(error);
 
-        const newProduct = await Product.create({
-          name,
-          slug: slugify(name),
-          description,
-          price,
-          quantity,
-          shipping: shipping === "1" || shipping === true,
-          image: result.secure_url,
-          categoryId,
-        });
+        try {
+          const newProduct = await Product.create({
+            name,
+            slug: slugify(name, slugOpts),
+            description,
+            price,
+            quantity,
+            shipping,
+            image: result.secure_url,
+            categoryId,
+          });
 
-        return res.status(201).json({
-          status: "success",
-          message: "Product created successfully",
-          payload: newProduct,
-        });
+          return res.status(201).json({
+            success: true,
+            message: "Product created successfully",
+            payload: newProduct,
+          });
+        } catch (e) {
+          return next(e);
+        }
       }
     );
 
-    // pipe buffer directly to cloudinary
     streamifier.createReadStream(file.buffer).pipe(uploadStream);
-
   } catch (error) {
-    console.error("❌ Error in handleCreateProduct:", error);
     next(error);
   }
 };
+
 /**
  * @desc UPDATE product
  */
 const handleUpdateProduct = async (req, res, next) => {
   try {
     const { slug } = req.params;
-    
-    const updateProduct = await updateProductServices(req, slug);
 
-    console.log("dfkjsdag",updateProduct);
-    
+    const updateProduct = await updateProductServices(req, slug);
 
     return successRespons(res, {
       statusCode: 200,
@@ -149,23 +160,26 @@ const handleUpdateProduct = async (req, res, next) => {
     next(error);
   }
 };
+
 /**
  * @desc DELETE product
  */
 const handleDeleteProduct = async (req, res, next) => {
   try {
-    const { id } = req.params; 
+    const { id } = req.params;
+
     const deleteProduct = await Product.findByIdAndDelete(id);
 
     if (!deleteProduct) {
       throw createError(404, "Product not found");
     }
 
-    // Delete image from Cloudinary
     if (deleteProduct.image) {
-      const cloudImageId = await cloudinaryHelper(deleteProduct.image);
-      await deleteCloudinaryImage("mernEcommerce/product", cloudImageId, "Product");
-      // No need to delete local file since memoryStorage
+      try {
+        await deleteCloudinaryImage(deleteProduct.image, "Product");
+      } catch (_) {
+        // Product already removed from DB; log-only in production monitoring
+      }
     }
 
     return successRespons(res, {
@@ -177,18 +191,24 @@ const handleDeleteProduct = async (req, res, next) => {
     next(error);
   }
 };
+
 /**
  * @desc Get stock for multiple products
  */
 const handleGetStock = async (req, res, next) => {
   try {
-    const { productIds } = req.body; // Array of product IDs
+    const { productIds } = req.body;
 
-    if (!productIds || !Array.isArray(productIds)) {
-      return res.status(400).json({ message: "productIds array is required" });
+    if (!productIds || !Array.isArray(productIds) || productIds.length === 0) {
+      return res.status(400).json({ message: "productIds non-empty array is required" });
     }
 
-    const products = await Product.find({ _id: { $in: productIds } });
+    const validIds = productIds.filter((id) => mongoose.Types.ObjectId.isValid(id));
+    if (validIds.length !== productIds.length) {
+      return res.status(400).json({ message: "Each productIds entry must be a valid MongoDB id" });
+    }
+
+    const products = await Product.find({ _id: { $in: validIds } }).select("_id quantity");
 
     const stockData = {};
     products.forEach((p) => {
@@ -197,29 +217,31 @@ const handleGetStock = async (req, res, next) => {
 
     return res.status(200).json(stockData);
   } catch (error) {
-    console.error("Get Stock Error:", error);
     next(error);
   }
 };
 
 /**
- * @desc BUY product (decrease stock, increase sold)
+ * @desc BUY product (decrease stock, increase sold) — authenticated users only
  */
 const handleBuyProduct = async (req, res, next) => {
   try {
     const { productId, quantity } = req.body;
-    
 
-    if (!productId || !quantity || quantity <= 0) {
+    if (!mongoose.Types.ObjectId.isValid(productId)) {
+      return res.status(400).json({ message: "Invalid product id" });
+    }
+
+    const qty = typeof quantity === "string" ? parseFloat(quantity) : Number(quantity);
+    if (!Number.isFinite(qty) || qty <= 0) {
       return res.status(400).json({ message: "Product ID and valid quantity are required" });
     }
 
     const updatedProduct = await Product.findOneAndUpdate(
-      { _id: productId, quantity: { $gte: quantity } }, // condition: enough stock
-      { $inc: { quantity: -quantity, sold: quantity } }, // decrease stock, increase sold
+      { _id: productId, quantity: { $gte: qty } },
+      { $inc: { quantity: -qty, sold: qty } },
       { new: true }
     );
-    
 
     if (!updatedProduct) {
       return res.status(400).json({ message: "Not enough stock available" });
@@ -231,7 +253,6 @@ const handleBuyProduct = async (req, res, next) => {
       payload: updatedProduct,
     });
   } catch (error) {
-    console.error("Buy Product Error:", error);
     next(error);
   }
 };
@@ -244,5 +265,5 @@ module.exports = {
   handleUpdateProduct,
   handleDeleteProduct,
   handleGetStock,
-  handleBuyProduct, // NEW
+  handleBuyProduct,
 };
