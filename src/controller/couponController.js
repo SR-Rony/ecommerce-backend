@@ -1,12 +1,29 @@
 const Coupon = require("../models/couponModel");
 
-// ✅ Create new coupon
-const createCoupon = async (req, res) => {
+const COUPON_UPDATE_FIELDS = [
+  "code",
+  "discountType",
+  "discountValue",
+  "minPurchase",
+  "expiryDate",
+  "isActive",
+];
+
+const pickCouponUpdates = (body) => {
+  const updates = {};
+  if (!body || typeof body !== "object") return updates;
+  for (const key of COUPON_UPDATE_FIELDS) {
+    if (body[key] !== undefined) updates[key] = body[key];
+  }
+  return updates;
+};
+
+const createCoupon = async (req, res, next) => {
   try {
     const { code, discountType, discountValue, minPurchase, expiryDate } = req.body;
 
     const coupon = await Coupon.create({
-      code,
+      code: String(code).trim(),
       discountType,
       discountValue,
       minPurchase,
@@ -15,74 +32,108 @@ const createCoupon = async (req, res) => {
 
     res.status(201).json({ success: true, coupon });
   } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
+    if (error.code === 11000) {
+      return res.status(409).json({ success: false, message: "Coupon code already exists" });
+    }
+    next(error);
   }
 };
 
-// ✅ Get all coupons
-const getCoupons = async (req, res) => {
+const getCoupons = async (req, res, next) => {
   try {
     const coupons = await Coupon.find().sort({ createdAt: -1 });
     res.json({ success: true, coupons });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    next(error);
   }
 };
 
-// ✅ Update coupon
-const updateCoupon = async (req, res) => {
+const updateCoupon = async (req, res, next) => {
   try {
-    const coupon = await Coupon.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (!req.params.id) {
+      return res.status(400).json({ success: false, message: "Coupon id is required" });
+    }
+
+    const updates = pickCouponUpdates(req.body);
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ success: false, message: "No valid fields to update" });
+    }
+
+    if (updates.code !== undefined) {
+      updates.code = String(updates.code).trim();
+    }
+
+    const coupon = await Coupon.findByIdAndUpdate(
+      req.params.id,
+      { $set: updates },
+      { new: true, runValidators: true }
+    );
+
     if (!coupon) return res.status(404).json({ success: false, message: "Coupon not found" });
     res.json({ success: true, coupon });
   } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
+    if (error.code === 11000) {
+      return res.status(409).json({ success: false, message: "Coupon code already exists" });
+    }
+    next(error);
   }
 };
 
-// ✅ Delete coupon
-const deleteCoupon = async (req, res) => {
+const deleteCoupon = async (req, res, next) => {
   try {
     const coupon = await Coupon.findByIdAndDelete(req.params.id);
     if (!coupon) return res.status(404).json({ success: false, message: "Coupon not found" });
     res.json({ success: true, message: "Coupon deleted" });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    next(error);
   }
 };
 
-// ✅ Apply coupon
-const applyCoupon = async (req, res) => {
+const applyCoupon = async (req, res, next) => {
   const { code, cartTotal } = req.body;
 
   try {
-    const coupon = await Coupon.findOne({ code, isActive: true });
-    if (!coupon) return res.status(404).json({ message: "Invalid coupon" });
-
-    if (new Date(coupon.expiryDate) < new Date()) {
-      return res.status(400).json({ message: "Coupon expired" });
+    if (code === undefined || code === null || String(code).trim() === "") {
+      return res.status(400).json({ success: false, message: "Coupon code is required" });
+    }
+    const total = Number(cartTotal);
+    if (!Number.isFinite(total) || total < 0) {
+      return res.status(400).json({ success: false, message: "Valid cartTotal is required" });
     }
 
-    if (cartTotal < coupon.minPurchase) {
-      return res.status(400).json({ message: `Minimum purchase ${coupon.minPurchase}` });
+    const coupon = await Coupon.findOne({ code: String(code).trim(), isActive: true });
+    if (!coupon) return res.status(404).json({ success: false, message: "Invalid coupon" });
+
+    if (new Date(coupon.expiryDate) < new Date()) {
+      return res.status(400).json({ success: false, message: "Coupon expired" });
+    }
+
+    if (total < coupon.minPurchase) {
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: `Minimum purchase ${coupon.minPurchase}`,
+        });
     }
 
     let discount = 0;
     if (coupon.discountType === "percentage") {
-      discount = (cartTotal * coupon.discountValue) / 100;
+      discount = (total * coupon.discountValue) / 100;
     } else {
       discount = coupon.discountValue;
     }
 
-    const finalTotal = cartTotal - discount;
+    discount = Math.min(discount, total);
+    const finalTotal = Math.max(0, total - discount);
 
     res.json({
       success: true,
       discount,
-      finalTotal
+      finalTotal,
     });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    next(error);
   }
 };
 
@@ -91,5 +142,5 @@ module.exports = {
   getCoupons,
   updateCoupon,
   deleteCoupon,
-  applyCoupon
+  applyCoupon,
 };

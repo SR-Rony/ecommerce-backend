@@ -1,20 +1,16 @@
-const mongoose = require("mongoose")
-const createError = require("http-errors")
+const mongoose = require("mongoose");
+const createError = require("http-errors");
 
-const findWithIdService = async (Model,id,option={})=>{
-    try{
-        const item = await Model.findById(id,option)
-        
-        if(!item){
-            throw createError(404,`${Model.modelName} dos not exist with by id`)
-        }
-        return item
-    }catch(error){
-        if(error instanceof mongoose.Error){
-            throw createError(404,`Invalid ${Model.modelName} id`)
-        }
-        return error
-    }
-}
+const findWithIdService = async (Model, id, option = {}) => {
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw createError(404, `${Model.modelName} not found`);
+  }
 
-module.exports = {findWithIdService}
+  const item = await Model.findById(id, option);
+  if (!item) {
+    throw createError(404, `${Model.modelName} not found`);
+  }
+  return item;
+};
+
+module.exports = { findWithIdService };

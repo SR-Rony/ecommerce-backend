@@ -1,5 +1,18 @@
 const createError = require("http-errors");
 
+//============ authenticated user required (reads cookie via attachUser) ============
+
+const requireAuth = async (req, res, next) => {
+  try {
+    if (!req.user || !req.user._id) {
+      throw createError(401, "Authentication required");
+    }
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
+
 //============ admin check middleware ============
 
 const isAdmin = async (req, res, next) => {
@@ -15,4 +28,4 @@ const isAdmin = async (req, res, next) => {
 };
 
 
-module.exports = { isAdmin };
+module.exports = { isAdmin, requireAuth };

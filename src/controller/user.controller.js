@@ -1,78 +1,103 @@
 const createError = require("http-errors");
+const mongoose = require("mongoose");
 const User = require("../models/userModel");
 const bcrypt = require("bcryptjs");
 
 const { successRespons } = require("./respones.controller");
 const { findWithIdService } = require("../services/findItem");
-const { 
+const {
   findUserService,
   UserActionService,
-  updatePasswordService 
+  updatePasswordService,
 } = require("../services/userServices");
+
+const normalizePhone = (phone) => String(phone ?? "").trim();
+
+/** In-memory OTP for registration — use Redis etc. for multi-instance production */
 const otpStore = new Map();
 
-// ============== user register ============ //
+function assertSelfOrAdmin(req, targetUserId, message = "Forbidden") {
+  const uid = req.user && (req.user._id || req.user.id);
+  if (!uid) throw createError(401, "Authentication required");
+  const isSelf = String(uid) === String(targetUserId);
+  const isAdminUser = req.user.role === "admin";
+  if (!isSelf && !isAdminUser) {
+    throw createError(403, message);
+  }
+}
+
 const handleRegister = async (req, res, next) => {
   try {
     const { name, phone, password } = req.body;
-    
+    const phoneKey = normalizePhone(phone);
 
-    if (!name || !phone || !password) {
+    if (!name || !phoneKey || !password) {
       throw createError(400, "Name, phone and password are required");
     }
 
-    // check if user already exists
-    const existingUser = await User.findOne({ phone });
+    const existingUser = await User.exists({ phone: phoneKey });
     if (existingUser) {
-      throw createError(409, "User with this phone already exists. Please login.");
+      throw createError(409, "This phone is already registered. Please login.");
     }
 
-    // ✅ Step 1: Generate OTP (simulate sending SMS)
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    otpStore.set(phone, { otp, expires: Date.now() + 5 * 60 * 1000 }); // 5 min validity
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-    console.log(`📲 OTP for ${phone}: ${otp}`); // simulate SMS sending
+    otpStore.set(phoneKey, {
+      otp,
+      expires: Date.now() + 5 * 60 * 1000,
+      pendingUser: {
+        name: String(name).trim(),
+        phone: phoneKey,
+        password: hashedPassword,
+      },
+    });
 
-    // ✅ Step 2: Temporarily hold user data (hashed password) until OTP verified
-    const hashedPassword = bcrypt.hashSync(password, 10);
-
-    // save user data temporarily in token or cache (for simplicity use Map)
-    otpStore.get(phone).pendingUser = { name, phone, password: hashedPassword };
+    const devHint =
+      process.env.NODE_ENV !== "production"
+        ? { devOtp: otp }
+        : {};
 
     return successRespons(res, {
       statusCode: 200,
-      message: `OTP sent successfully to ${phone}. Please verify to complete registration.`,
+      message: `OTP sent to ${phoneKey}. Verify to complete registration.`,
+      payload: devHint,
     });
   } catch (error) {
     next(error);
   }
 };
 
-// ============== user verify ============ //
 const handleUserVerify = async (req, res, next) => {
   try {
-    const { phone, otp } = req.body;
+    const phoneKey = normalizePhone(req.body.phone);
+    const { otp } = req.body;
 
-    const stored = otpStore.get(String(phone));
-
+    const stored = otpStore.get(phoneKey);
     if (!stored) throw createError(400, "No OTP found for this phone number");
-    if (stored.expires < Date.now()) throw createError(400, "OTP expired");
+    if (stored.expires < Date.now()) {
+      otpStore.delete(phoneKey);
+      throw createError(400, "OTP expired");
+    }
     if (String(stored.otp) !== String(otp)) throw createError(400, "Invalid OTP");
 
-    const { name, password } = stored.pendingUser;
+    const pending = stored.pendingUser;
+    if (!pending || !pending.name || !pending.password) {
+      throw createError(400, "Registration data missing — start registration again");
+    }
 
     const user = await User.create({
-      name,
-      phone,
-      password,
+      name: pending.name,
+      phone: pending.phone,
+      password: pending.password,
       isVerified: true,
     });
 
-    otpStore.delete(String(phone));
+    otpStore.delete(phoneKey);
 
     return successRespons(res, {
       statusCode: 201,
-      message: "✅ Phone verified and user registered successfully!",
+      message: "Phone verified and registration completed.",
       payload: {
         user: {
           id: user._id,
@@ -84,13 +109,10 @@ const handleUserVerify = async (req, res, next) => {
       },
     });
   } catch (error) {
-    console.error("Verification Error:", error);
     next(error);
   }
 };
 
-
-// ======== get all user ======== //
 const handleGetUsers = async (req, res, next) => {
   try {
     const search = req.query.search || "";
@@ -106,18 +128,12 @@ const handleGetUsers = async (req, res, next) => {
   }
 };
 
-// ======== get single user ======== //
 const handleGetSingleUser = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    if (!id || id.length !== 24) {
-      throw createError(400, "Invalid user ID format");
-    }
-
     const projection = { password: 0 };
     const singleUser = await findWithIdService(User, id, projection);
-    if (!singleUser) throw createError(404, "User not found");
 
     return successRespons(res, {
       statusCode: 200,
@@ -129,39 +145,53 @@ const handleGetSingleUser = async (req, res, next) => {
   }
 };
 
-// ====== update user ======= //
 const handleUpdateUser = async (req, res, next) => {
   try {
     const updateId = req.params.id;
-    
-    const user = await findWithIdService(User, updateId, { password: 0 });
-    if (!user) throw createError(404, "User not found");
+    assertSelfOrAdmin(req, updateId, "You may only update your own profile");
 
     const updates = {};
-    for (let key in req.body) {
-      if (["name", "phone"].includes(key)) {
+    for (const key of Object.keys(req.body || {})) {
+      if (key === "name" || key === "phone") {
         updates[key] = req.body[key];
-      } else if (key === "email") {
-        throw createError(400, "Email cannot be updated");
       }
     }
 
-    const updatedUser = await User.findByIdAndUpdate(updateId, updates, {
-      new: true,
-      runValidators: true,
-    }).select("-password");
+    if (updates.name !== undefined) {
+      updates.name = String(updates.name).trim();
+      if (updates.name.length < 3) throw createError(400, "Name must be at least 3 characters");
+    }
+    if (updates.phone !== undefined) {
+      updates.phone = normalizePhone(updates.phone);
+      if (!updates.phone) throw createError(400, "Phone cannot be empty");
+    }
 
-    return successRespons(res, {
-      statusCode: 200,
-      message: "User updated successfully",
-      payload: { user: updatedUser },
-    });
+    if (Object.keys(updates).length === 0) {
+      throw createError(400, "No allowed fields to update (name or phone)");
+    }
+
+    try {
+      const updatedUser = await User.findByIdAndUpdate(updateId, updates, {
+        new: true,
+        runValidators: true,
+      }).select("-password");
+
+      return successRespons(res, {
+        statusCode: 200,
+        message: "User updated successfully",
+        payload: { user: updatedUser },
+      });
+    } catch (err) {
+      if (err.code === 11000) {
+        throw createError(409, "This phone number is already in use");
+      }
+      throw err;
+    }
   } catch (error) {
     next(error);
   }
 };
 
-// ====== manage user (ban/unban etc.) ======= //
 const handleManageUser = async (req, res, next) => {
   try {
     const userId = req.params.id;
@@ -177,15 +207,21 @@ const handleManageUser = async (req, res, next) => {
   }
 };
 
-// ====== update password ======= //
 const handleUpdatePassword = async (req, res, next) => {
   try {
     const updateId = req.params.id;
-    const { email, oldPassword, newPassword, confirmPassword } = req.body;
+    assertSelfOrAdmin(req, updateId, "You may only change your own password");
+
+    const {
+      phone,
+      oldPassword,
+      newPassword,
+      confirmPassword,
+    } = req.body;
 
     const updatedUser = await updatePasswordService(
       updateId,
-      email,
+      phone,
       oldPassword,
       newPassword,
       confirmPassword
@@ -194,135 +230,124 @@ const handleUpdatePassword = async (req, res, next) => {
     return successRespons(res, {
       statusCode: 200,
       message: "Password updated successfully",
-      payload: updatedUser,
+      payload: { user: updatedUser },
     });
   } catch (error) {
     next(error);
   }
 };
 
-// ====== forgot password ======= //
 const handleForgotPassword = async (req, res, next) => {
   try {
-    const { phone } = req.body;
-    
-    if (!phone) throw createError(400, "Phone number is required");
+    const phoneKey = normalizePhone(req.body.phone);
 
-    // OTP generate
+    const userExists = await User.exists({ phone: phoneKey });
+
     const otp = Math.floor(100000 + Math.random() * 900000);
-    
-    // Save in Map with 5 min expiry
-    global.forgotPasswordStore.set(phone, {
-      otp,
-      expires: Date.now() + 5 * 60 * 1000, // 5 min
-    });
+    const expires = Date.now() + 5 * 60 * 1000;
 
-    console.log(`📲 OTP for ${phone}: ${otp}`); // simulate SMS
+    if (userExists) {
+      global.forgotPasswordStore.set(phoneKey, { otp, expires });
+    }
+
+    const payload =
+      process.env.NODE_ENV !== "production"
+        ? userExists
+          ? { devOtp: otp }
+          : { note: "No account for this phone — OTP not stored" }
+        : {};
 
     return successRespons(res, {
       statusCode: 200,
-      message: `OTP sent to ${phone}`,
+      message:
+        "If an account exists with this phone number, you will receive an OTP.",
+      payload,
     });
   } catch (error) {
     next(error);
   }
 };
 
-//===========================
 const handleVerifyForgotOtp = async (req, res, next) => {
   try {
-    const { phone, otp } = req.body;
-    if (!phone || !otp) throw createError(400, "Phone and OTP are required");
+    const phoneKey = normalizePhone(req.body.phone);
+    const { otp } = req.body;
 
-    const phoneKey = String(phone);
     const stored = global.forgotPasswordStore.get(phoneKey);
     if (!stored) throw createError(400, "OTP expired or not requested");
 
     const { otp: storedOtp, expires } = stored;
 
-    if (Date.now() > expires) throw createError(400, "OTP expired");
+    if (Date.now() > expires) {
+      global.forgotPasswordStore.delete(phoneKey);
+      throw createError(400, "OTP expired");
+    }
 
-    if (Number(storedOtp) !== Number(otp)) throw createError(400, "Invalid OTP");
+    if (Number(storedOtp) !== Number(otp)) {
+      throw createError(400, "Invalid OTP");
+    }
 
     return successRespons(res, {
       statusCode: 200,
-      message: "OTP verified successfully. You can now reset your password.",
+      message: "OTP verified. You can now reset your password.",
     });
   } catch (error) {
     next(error);
   }
 };
 
-//=====================
-
-// PUT /user/reset-password
 const handleResetPassword = async (req, res, next) => {
   try {
-    const { phone, otp, newPassword } = req.body;
+    const phoneKey = normalizePhone(req.body.phone);
+    const { otp, newPassword } = req.body;
 
-    console.log(req.body);
-    
-
-    if (!phone || !otp || !newPassword) {
-      throw createError(400, "Phone, OTP and new password are required");
-    }
-
-    // 🔑 OTP fetch from global Map
-    const phoneKey = String(phone);
     const stored = global.forgotPasswordStore.get(phoneKey);
 
-    if (!stored) {
-      throw createError(400, "OTP expired or not requested");
-    }
+    if (!stored) throw createError(400, "OTP expired or not requested");
 
     const { otp: storedOtp, expires } = stored;
 
-    // OTP expiry check
     if (Date.now() > expires) {
-      global.forgotPasswordStore.delete(phoneKey); // remove expired OTP
+      global.forgotPasswordStore.delete(phoneKey);
       throw createError(400, "OTP expired");
     }
 
-    // OTP match check
     if (Number(storedOtp) !== Number(otp)) {
       throw createError(400, "Invalid OTP");
     }
 
-    // ✅ Find user
-    const user = await User.findOne({ phone });
+    const user = await User.findOne({ phone: phoneKey }).select("+password");
     if (!user) throw createError(404, "User not found");
 
-    // ✅ Hash new password
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-    user.password = hashedPassword;
+    user.password = newPassword;
     await user.save();
 
-    // ✅ Delete OTP after successful reset
     global.forgotPasswordStore.delete(phoneKey);
 
     return successRespons(res, {
       statusCode: 200,
       message: "Password reset successfully",
     });
-
   } catch (error) {
     next(error);
   }
 };
 
-
-// ====== delete user ======= //
 const handleDeleteUser = async (req, res, next) => {
   try {
-    const id = req.params.id;
-    const user = await findWithIdService(User, id, { password: 0 });
-    if (!user) throw createError(404, "User not found");
+    const { id } = req.params;
 
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      throw createError(404, "User not found");
+    }
+
+    const user = await User.findById(id).select("role");
+    if (!user) throw createError(404, "User not found");
     if (user.role === "admin") {
       throw createError(403, "Admin accounts cannot be deleted");
     }
 
-    await User.findByIdAndDelete(id);
+    await User.deleteOne({ _id: user._id });
 
     return successRespons(res, {
       statusCode: 200,
@@ -345,5 +370,4 @@ module.exports = {
   handleVerifyForgotOtp,
   handleResetPassword,
   handleDeleteUser,
-
 };

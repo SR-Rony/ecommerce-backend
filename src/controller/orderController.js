@@ -1,21 +1,13 @@
+const mongoose = require("mongoose");
 const Order = require("../models/orderModel");
 const Product = require("../models/productModel");
 const { successRespons } = require("./respones.controller");
 
-// @desc   Create new order
-// @route  POST /api/orders
-// @access Private (logged-in users only)
 const addOrder = async (req, res, next) => {
   try {
-    // 🔒 Login check
-    if (!req.user) {
-      console.log("req user",req.user);
-      return res.status(401).json({ message: "Login required to place order" });
-      
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ success: false, message: "Login required to place order" });
     }
-
-    const session = await Product.startSession();
-    session.startTransaction();
 
     const {
       orderItems,
@@ -26,88 +18,135 @@ const addOrder = async (req, res, next) => {
       totalPrice,
     } = req.body;
 
-    if (!orderItems || orderItems.length === 0) {
-      return res.status(400).json({ message: "No order items" });
+    if (!orderItems || !Array.isArray(orderItems) || orderItems.length === 0) {
+      return res.status(400).json({ success: false, message: "No order items" });
     }
 
-    // ✅ Stock decrease atomically
     for (const item of orderItems) {
-      const product = await Product.findOneAndUpdate(
-        { _id: item.productId, quantity: { $gte: item.qty } },
-        { $inc: { quantity: -item.qty, sold: item.qty } },
-        { new: true, session }
-      );
-
-      if (!product) {
-        await session.abortTransaction();
-        session.endSession();
-        return res.status(400).json({
-          message: `Not enough stock for product ${item.productId}`,
-        });
+      if (!item.productId || !mongoose.Types.ObjectId.isValid(item.productId)) {
+        return res.status(400).json({ success: false, message: "Invalid product id in order items" });
+      }
+      const qty = Number(item.qty);
+      if (!Number.isFinite(qty) || qty < 1) {
+        return res.status(400).json({ success: false, message: "Each item must have qty >= 1" });
       }
     }
 
-    // ✅ Create order with logged-in user only
-    const order = new Order({
-      orderItems,
-      shippingAddress,
-      paymentMethod,
-      itemsPrice,
-      shippingPrice,
-      totalPrice,
-      user: req.user._id, // logged-in user
-    });
+    let session = null;
+    try {
+      session = await Product.startSession();
+      session.startTransaction();
 
-    const createdOrder = await order.save({ session });
+      for (const item of orderItems) {
+        const product = await Product.findOneAndUpdate(
+          { _id: item.productId, quantity: { $gte: item.qty } },
+          { $inc: { quantity: -item.qty, sold: item.qty } },
+          { new: true, session }
+        );
 
-    await session.commitTransaction();
-    session.endSession();
+        if (!product) {
+          await session.abortTransaction();
+          return res.status(400).json({
+            success: false,
+            message: `Not enough stock for product ${item.productId}`,
+          });
+        }
+      }
 
-    return res.status(201).json({
-      statusCode: 201,
-      message: "Order successfully created",
-      payload: { order: createdOrder },
-    });
+      const order = new Order({
+        orderItems,
+        shippingAddress,
+        paymentMethod,
+        itemsPrice,
+        shippingPrice,
+        totalPrice,
+        user: req.user._id,
+      });
+
+      const createdOrder = await order.save({ session });
+
+      await session.commitTransaction();
+
+      return res.status(201).json({
+        success: true,
+        statusCode: 201,
+        message: "Order successfully created",
+        payload: { order: createdOrder },
+      });
+    } catch (err) {
+      if (session) await session.abortTransaction().catch(() => {});
+      throw err;
+    } finally {
+      if (session) session.endSession();
+    }
   } catch (error) {
-    console.error("Add Order Error:", error);
     next(error);
   }
 };
 
-// @desc   Get logged-in user's orders
-// @route  GET /api/orders/myorders
-// @access Private
-const getMyOrders = async (req, res, next) => {
+const getUserOrders = async (req, res, next) => {
   try {
-    // TODO: filter by logged-in user when auth is ready
-    const orders = await Order.find();
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ success: false, message: "Login required" });
+    }
+
+    const orders = await Order.find({ user: req.user._id }).sort({ createdAt: -1 });
+
+    return successRespons(res, {
+      statusCode: 200,
+      message: "Your orders",
+      payload: orders,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getAdminOrders = async (req, res, next) => {
+  try {
+    const orders = await Order.find().sort({ createdAt: -1 });
+
     return successRespons(res, {
       statusCode: 200,
       message: "All orders",
       payload: orders,
     });
   } catch (error) {
-    console.error("Get Orders Error:", error);
-    res.status(500).json({ message: "Server error" });
+    next(error);
   }
 };
 
-// @desc   Get order by ID
-// @route  GET /api/orders/:id
-// @access Private
 const getOrderById = async (req, res, next) => {
   try {
-    const order = await Order.findById(req.params.id); // ❌ removed populate("user")
-
-    if (order) {
-      res.json(order);
-    } else {
-      res.status(404).json({ message: "Order not found" });
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ success: false, message: "Login required" });
     }
+
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: "Invalid order id" });
+    }
+
+    const order = await Order.findById(id);
+    if (!order) {
+      return res.status(404).json({ success: false, message: "Order not found" });
+    }
+
+    const isAdmin = req.user.role === "admin";
+    const owner = order.user && String(order.user) === String(req.user._id);
+    if (!isAdmin && !owner) {
+      return res.status(403).json({ success: false, message: "Not allowed to view this order" });
+    }
+
+    return res.status(200).json({ success: true, payload: order });
   } catch (error) {
-    console.error("Get Order By ID Error:", error);
-    res.status(500).json({ message: "Server error" });
+    next(error);
   }
 };
 
-module.exports = { addOrder, getMyOrders, getOrderById };
+module.exports = {
+  addOrder,
+  getUserOrders,
+  getAdminOrders,
+  getOrderById,
+};

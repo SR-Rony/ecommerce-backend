@@ -1,4 +1,5 @@
 require("dotenv").config();
+require("express-async-errors");
 const { validateEnv, cfg } = require("./config/env");
 const app = require("./app");
 const connectDB = require("./config/db");
